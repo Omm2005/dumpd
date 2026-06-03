@@ -1,0 +1,24 @@
+{
+  "name": "@dumpd/auth",
+  "type": "module",
+  "exports": {
+    ".": {
+      "default": "./src/index.ts"
+    },
+    "./*": {
+      "default": "./src/*.ts"
+    }
+  },
+  "scripts": {},
+  "dependencies": {
+    "@dumpd/db": "workspace:*",
+    "@dumpd/env": "workspace:*",
+    "better-auth": "catalog:",
+    "dotenv": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@dumpd/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}
