@@ -5,6 +5,7 @@
       "name": "dumpd",
       "dependencies": {
         "@dumpd/env": "workspace:*",
+        "clsx": "^2.1.1",
         "dotenv": "catalog:",
         "zod": "catalog:",
       },
