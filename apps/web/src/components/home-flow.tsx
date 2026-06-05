@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { PlusIcon } from "@heroicons/react/24/outline";
 import {
   Background,
   BackgroundVariant,
@@ -16,8 +15,7 @@ import {
   type Node,
 } from "@xyflow/react";
 
-import { Button } from "@dumpd/ui/components/button";
-
+import { AddDumpMenu } from "@/components/add-dump-menu";
 import { authClient } from "@/lib/auth-client";
 
 import "@xyflow/react/dist/style.css";
@@ -80,38 +78,30 @@ export function HomeFlow() {
         <MiniMap
           pannable
           zoomable
-          className="!overflow-hidden !rounded-[18px] !bg-card"
+          className="hidden !overflow-hidden !rounded-[18px] !bg-card md:block"
           nodeColor={"var(--foreground)"}
           maskColor="color-mix(in oklab, var(--background) 72%, transparent)"
           style={minimapStyle}
         />
         <Controls
           showInteractive
-          className="!overflow-hidden !rounded-md !border-border !bg-card [&>button]:!border-border [&>button]:!bg-card [&>button]:!text-foreground"
+          className="!left-3 !top-[calc(env(safe-area-inset-top)+0.75rem)] !overflow-hidden !rounded-2xl !border-border/80 !bg-card/95 !shadow-sm md:!left-auto md:!top-auto [&>button]:!h-9 [&>button]:!w-9 [&>button]:!border-border [&>button]:!bg-card [&>button]:!text-foreground md:[&>button]:!h-8 md:[&>button]:!w-8"
         />
         <Background
           variant={BackgroundVariant.Dots}
-          gap={20}
+          gap={22}
           size={2}
           color="var(--border)"
         />
       </ReactFlow>
       {nodes.length === 0 && !isPending ? (
-        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="pointer-events-auto flex flex-col items-center gap-4">
-            <p className="text-center text-base font-medium text-muted-foreground">
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-5 pb-32 pt-24 md:px-8 md:pb-24 md:pt-20">
+          <div className="pointer-events-auto flex w-full max-w-sm flex-col items-center gap-4 rounded-[2rem] border border-border/70 bg-card/80 px-6 py-6 text-center shadow-sm backdrop-blur-xl">
+            <p className="text-balance text-sm font-medium text-muted-foreground md:text-base">
               {isSignedIn ? "There are no dumpd yet." : "Sign in with google to play around"}
             </p>
             {isSignedIn ? (
-              <Button
-                type="button"
-                size="sm"
-                className="cursor-pointer"
-                onClick={() => console.log("Add Dump")}
-              >
-                <PlusIcon data-icon="inline-start" />
-                Add Dump
-              </Button>
+              <AddDumpMenu onSelect={() => console.log("Add Dump")} />
             ) : null}
           </div>
         </div>

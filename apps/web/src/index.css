@@ -1,1 +1,22 @@
 @import "@dumpd/ui/globals.css";
+
+:root {
+  --app-safe-top: env(safe-area-inset-top, 0px);
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  overscroll-behavior: none;
+}
+
+@media (max-width: 767px) {
+  .react-flow__attribution,
+  .react-flow__minimap {
+    display: none;
+  }
+}

@@ -35,6 +35,8 @@ type SessionUser = {
   name?: string | null;
 };
 
+type ThemeMode = "system" | "light" | "dark";
+
 function getInitials(name?: string | null, email?: string | null) {
   const source = name?.trim() || email?.trim() || "U";
   const parts = source.split(/\s+/).filter(Boolean);
@@ -167,9 +169,11 @@ function extractAnswerAndFollowUps(content: string) {
 }
 
 export function HomeSessionDock() {
+  const responseAutoHideDelayMs = 10_000;
   const { data: session, isPending } = authClient.useSession();
   const { resolvedTheme, setTheme, theme } = useTheme();
   const [input, setInput] = useState("");
+  const [isLatestResponseHidden, setIsLatestResponseHidden] = useState(false);
   const {
     error,
     messages,
@@ -184,7 +188,9 @@ export function HomeSessionDock() {
   const user = (session as { user?: SessionUser } | null)?.user;
   const userName = user?.name || "User";
   const userEmail = user?.email || "";
-  const activeTheme = theme === "system" ? "system" : resolvedTheme === "dark" ? "dark" : "light";
+  const selectedTheme: ThemeMode =
+    theme === "light" || theme === "dark" || theme === "system" ? theme : "system";
+  const activeTheme = resolvedTheme === "dark" ? "dark" : "light";
   const isLoading = status === "submitted" || status === "streaming";
   const translucentSurfaceStyle = {
     backgroundColor:
@@ -219,12 +225,38 @@ export function HomeSessionDock() {
   );
   const answer = parsedAnswer.answer;
   const followUpQuestions = parsedAnswer.followUps;
+  const latestResponseKey = latestAssistantMessage?.id ?? latestDisplayPart?.text ?? "";
+  const shouldRenderResponseBox = Boolean((isLoading || latestDisplayPart) && !isLatestResponseHidden);
+  const shouldRenderResponseHiddenHint = Boolean(
+    !isLoading && latestDisplayPart && isLatestResponseHidden,
+  );
 
   useEffect(() => {
     if (error) {
       toast.error(error.message);
     }
   }, [error]);
+
+  useEffect(() => {
+    if (!latestDisplayPart) {
+      setIsLatestResponseHidden(false);
+      return;
+    }
+
+    setIsLatestResponseHidden(false);
+
+    if (isLoading) {
+      return;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setIsLatestResponseHidden(true);
+    }, responseAutoHideDelayMs);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [isLoading, latestDisplayPart, latestResponseKey]);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -253,16 +285,16 @@ export function HomeSessionDock() {
 
   return (
     <>
-      <div className="fixed right-4 top-4 z-20 flex items-center gap-2">
+      <div className="fixed right-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-20 flex items-center gap-2 md:right-4 md:top-4">
         <div>
-          <ThemeSwitcher value={activeTheme} onChange={setTheme} />
+          <ThemeSwitcher value={selectedTheme} onChange={setTheme} />
         </div>
         {session ? (
           <DropdownMenu>
-            <DropdownMenuTrigger className="mt-1 flex size-9 cursor-pointer items-center justify-center rounded-full border border-border bg-card p-1 shadow-sm outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30">
+            <DropdownMenuTrigger className="mt-1 flex size-10 cursor-pointer items-center justify-center rounded-full border border-border bg-card p-1 shadow-sm outline-none transition focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/30 md:size-9">
               <UserAvatar
                 user={user}
-                className="size-8 rounded-full bg-muted object-cover text-center text-[10px] font-medium leading-7 text-foreground"
+                className="size-8 rounded-full bg-muted object-cover text-center text-[10px] font-medium leading-7 text-foreground md:size-8"
               />
               <span className="sr-only">Open user menu</span>
             </DropdownMenuTrigger>
@@ -292,17 +324,17 @@ export function HomeSessionDock() {
           </DropdownMenu>
         ) : null}
       </div>
-      <div className="pointer-events-none fixed inset-x-0 bottom-6 z-20 flex justify-center px-4">
+      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] z-20 flex justify-center px-3 md:bottom-6 md:px-4">
         {isPending ? (
-          <div className="pointer-events-auto flex h-9 w-full max-w-64 items-center justify-center gap-2 rounded-full border border-border bg-card px-3 shadow-sm">
+          <div className="pointer-events-auto flex h-10 w-full max-w-72 items-center justify-center gap-2 rounded-full border border-border bg-card px-3 shadow-sm">
             <ArrowPathIcon className="size-3.5 animate-spin text-muted-foreground" />
             <span className="text-xs text-muted-foreground">Loading session</span>
           </div>
         ) : session ? (
-          <div className="pointer-events-auto flex w-full flex-col items-center gap-2">
-            {isLoading || latestDisplayPart ? (
+          <div className="pointer-events-auto flex w-full max-w-xl flex-col items-center gap-2">
+            {shouldRenderResponseBox ? (
               <div
-                className="w-full max-w-[27rem] rounded-2xl border px-3 py-2 shadow-sm backdrop-blur-xl"
+                className="w-full max-w-[27rem] rounded-[1.75rem] border px-3.5 py-3 shadow-sm backdrop-blur-xl md:px-3 md:py-2"
                 style={translucentSurfaceStyle}
               >
                 {reasoning || (isLoading && !answer) ? (
@@ -325,14 +357,14 @@ export function HomeSessionDock() {
                     />
                     <p className="text-[11px] text-muted-foreground">gemini-2.5-flash</p>
                     {followUpQuestions.length > 0 ? (
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-2 pt-1">
                         {followUpQuestions.map((question) => (
                           <button
                             key={question}
                             type="button"
                             onClick={() => void handleFollowUp(question)}
                             disabled={isLoading}
-                            className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] text-muted-foreground transition hover:bg-white/10 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+                            className="rounded-full border border-white/10 bg-white/5 px-3 py-1.5 text-[11px] text-muted-foreground transition hover:bg-white/10 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
                           >
                             {question}
                           </button>
@@ -343,9 +375,18 @@ export function HomeSessionDock() {
                 ) : null}
               </div>
             ) : null}
+            {shouldRenderResponseHiddenHint ? (
+              <button
+                type="button"
+                onClick={() => setIsLatestResponseHidden(false)}
+                className="rounded-full border border-border/70 bg-background/70 px-3 py-1 text-[11px] text-muted-foreground shadow-sm backdrop-blur-xl transition hover:text-foreground"
+              >
+                Last answer hidden after 10s. Show it again.
+              </button>
+            ) : null}
             <form
               onSubmit={handleSubmit}
-              className="flex w-full max-w-72 items-center gap-1 rounded-full border px-1.5 py-1 shadow-sm backdrop-blur-xl"
+              className="flex w-full max-w-[27rem] items-center gap-1 rounded-[1.75rem] border px-2 py-2 shadow-sm backdrop-blur-xl md:rounded-full md:px-1.5 md:py-1"
               style={translucentSurfaceStyle}
             >
               <Input
@@ -355,12 +396,12 @@ export function HomeSessionDock() {
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 disabled={isLoading}
-                className="h-7 rounded-full border-0 bg-transparent px-2 text-xs shadow-none focus-visible:ring-0"
+                className="h-10 rounded-full border-0 bg-transparent px-3 text-sm shadow-none focus-visible:ring-0 md:h-7 md:px-2 md:text-xs"
               />
               <Button
                 type="submit"
-                size="icon-xs"
-                className="size-7 cursor-pointer rounded-full"
+                size="icon-sm"
+                className="size-10 cursor-pointer rounded-full md:size-7"
                 disabled={!trimmedMessage || isLoading}
               >
                 <PaperAirplaneIcon data-icon="inline-start" />
