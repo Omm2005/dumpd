@@ -101,7 +101,7 @@ export function HomeFlow() {
               {isSignedIn ? "There are no dumpd yet." : "Sign in with google to play around"}
             </p>
             {isSignedIn ? (
-              <AddDumpMenu onSelect={() => console.log("Add Dump")} />
+              <AddDumpMenu onCreate={(payload) => console.log("Add Dump", payload)} />
             ) : null}
           </div>
         </div>

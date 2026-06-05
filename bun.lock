@@ -25,6 +25,8 @@
         "@dumpd/env": "workspace:*",
         "@dumpd/ui": "workspace:*",
         "@heroicons/react": "^2.2.0",
+        "@hugeicons/core-free-icons": "^4.2.0",
+        "@hugeicons/react": "^1.1.6",
         "@radix-ui/react-use-controllable-state": "^1.2.2",
         "@tanstack/react-form": "^1.28.0",
         "@xyflow/react": "^12.11.0",
