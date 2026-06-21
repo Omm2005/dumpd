@@ -52,12 +52,43 @@ body {
   box-shadow: none !important;
 }
 
+@keyframes pin-float {
+  0%, 100% {
+    transform: rotate(var(--node-rotate, 0deg)) translateY(0px);
+  }
+  45% {
+    transform: rotate(calc(var(--node-rotate, 0deg) + 0.35deg)) translateY(-5px);
+  }
+}
+
 .dump-node {
   position: relative;
   background: var(--card);
   border-color: var(--border);
-  box-shadow: none !important;
   outline: none;
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    0 8px 20px rgba(0, 0, 0, 0.08),
+    0 20px 40px rgba(0, 0, 0, 0.05) !important;
+  animation: pin-float var(--float-duration, 7s) ease-in-out infinite;
+  animation-delay: var(--float-delay, 0s);
+  animation-fill-mode: both;
+  will-change: transform;
+  transition: box-shadow 0.3s ease;
+}
+
+.react-flow__node:hover .dump-node {
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.07),
+    0 16px 32px rgba(0, 0, 0, 0.13),
+    0 32px 56px rgba(0, 0, 0, 0.08) !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dump-node {
+    animation: none;
+    transform: none;
+  }
 }
 
 @keyframes shimmer {

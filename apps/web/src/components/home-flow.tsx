@@ -46,6 +46,8 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 
+import { motion, useSpring } from "motion/react";
+
 import { authClient } from "@/lib/auth-client";
 import { SOURCE_FOCUS_EVENT } from "@/lib/chat-sources";
 import { tiptapToMarkdown } from "@/lib/tiptap-to-markdown";
@@ -122,11 +124,42 @@ function getDumpTypeColor(type?: string) {
   return dumpTypeColors[key] || dumpTypeColors.note;
 }
 
-function getNodePosition(index: number) {
+function nodeHash(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+function getNodeRotation(id: string): number {
+  return (((nodeHash(id) >> 16) & 0xff) / 255) * 4 - 2;
+}
+
+function getNodePosition(index: number, id = "") {
+  const h = nodeHash(id);
   return {
-    x: (index % 3) * 320,
-    y: Math.floor(index / 3) * 220,
+    x: (index % 3) * 360 + (((h & 0xff) / 255) * 60 - 30),
+    y: Math.floor(index / 3) * 270 + ((((h >> 8) & 0xff) / 255) * 40 - 20),
   };
+}
+
+function useTilt() {
+  const tiltX = useSpring(0, { stiffness: 250, damping: 25 });
+  const tiltY = useSpring(0, { stiffness: 250, damping: 25 });
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    tiltX.set(((e.clientY - cy) / (rect.height / 2)) * -6);
+    tiltY.set(((e.clientX - cx) / (rect.width / 2)) * 6);
+  };
+
+  const handleMouseLeave = () => {
+    tiltX.set(0);
+    tiltY.set(0);
+  };
+
+  return { tiltX, tiltY, handleMouseMove, handleMouseLeave };
 }
 
 function dumpToNode(dump: DumpRecord, index: number): Node {
@@ -149,8 +182,8 @@ function dumpToNode(dump: DumpRecord, index: number): Node {
     id: dump.id,
     type: nodeType,
     position: {
-      x: dump.positionX ?? getNodePosition(index).x,
-      y: dump.positionY ?? getNodePosition(index).y,
+      x: dump.positionX ?? getNodePosition(index, dump.id).x,
+      y: dump.positionY ?? getNodePosition(index, dump.id).y,
     },
     data: {
       id: dump.id,
@@ -207,6 +240,9 @@ function dumpToNode(dump: DumpRecord, index: number): Node {
           ? dumpContent.durationSeconds
           : undefined,
       createdAt: dump.createdAt,
+      rotation: getNodeRotation(dump.id),
+      floatDelay: -(index * 1.37) % 8,
+      floatDuration: 6 + ((nodeHash(dump.id) >> 4) % 3),
     },
   };
 }
@@ -231,6 +267,9 @@ type DumpNodeData = {
   releaseYear?: number;
   durationSeconds?: number;
   createdAt?: string;
+  rotation?: number;
+  floatDelay?: number;
+  floatDuration?: number;
 };
 
 function getMusicEmbedUrl(sourceUrl?: string) {
@@ -632,35 +671,49 @@ function WorldNode({ data }: NodeProps) {
 
 function NoteNode({ data }: NodeProps) {
   const note = data as DumpNodeData;
+  const { rotation = 0, floatDelay = 0, floatDuration = 7 } = note;
+  const { tiltX, tiltY, handleMouseMove, handleMouseLeave } = useTilt();
   const dumpType = note.type?.toLowerCase() || "note";
   const body = note.markdown?.trim() || note.preview?.trim() || "";
 
   return (
     <div
-      className="dump-node relative flex h-[26rem] w-80 cursor-pointer flex-col rounded-2xl border p-5 text-card-foreground transition-transform duration-150 hover:-translate-y-1"
+      className="dump-node relative h-[26rem] w-80 cursor-pointer rounded-2xl border text-card-foreground"
       data-dump-type={dumpType}
+      style={{
+        '--node-rotate': `${rotation}deg`,
+        '--float-delay': `${floatDelay}s`,
+        '--float-duration': `${floatDuration}s`,
+      } as React.CSSProperties}
     >
-      <h2 className="line-clamp-2 font-serif text-2xl font-semibold leading-tight tracking-tight text-foreground">
-        {note.title || "Untitled"}
-      </h2>
-
-      <div className="dump-node-fade relative mt-4 min-h-0 flex-1 overflow-hidden">
-        {body ? (
-          <div className="note-prose text-sm leading-relaxed text-muted-foreground">
-            <Markdown remarkPlugins={[remarkGfm]}>{body}</Markdown>
-          </div>
-        ) : (
-          <p className="text-sm italic leading-relaxed text-muted-foreground/70">
-            No body text yet.
-          </p>
-        )}
-      </div>
-
-      <div className="mt-4 border-t border-border/50 pt-3">
-        <span className="truncate text-sm font-semibold text-foreground">
+      <motion.div
+        className="flex h-full w-full flex-col p-5"
+        style={{ rotateX: tiltX, rotateY: tiltY, transformPerspective: 900 }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
+        <h2 className="line-clamp-2 font-serif text-2xl font-semibold leading-tight tracking-tight text-foreground">
           {note.title || "Untitled"}
-        </span>
-      </div>
+        </h2>
+
+        <div className="dump-node-fade relative mt-4 min-h-0 flex-1 overflow-hidden">
+          {body ? (
+            <div className="note-prose text-sm leading-relaxed text-muted-foreground">
+              <Markdown remarkPlugins={[remarkGfm]}>{body}</Markdown>
+            </div>
+          ) : (
+            <p className="text-sm italic leading-relaxed text-muted-foreground/70">
+              No body text yet.
+            </p>
+          )}
+        </div>
+
+        <div className="mt-4 border-t border-border/50 pt-3">
+          <span className="truncate text-sm font-semibold text-foreground">
+            {note.title || "Untitled"}
+          </span>
+        </div>
+      </motion.div>
     </div>
   );
 }
@@ -669,40 +722,55 @@ function ImageNode({ data }: NodeProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
   const image = data as DumpNodeData;
+  const { rotation = 0, floatDelay = 0, floatDuration = 7 } = image;
+  const { tiltX, tiltY, handleMouseMove, handleMouseLeave } = useTilt();
 
   return (
     <article
       className="dump-node relative w-80 cursor-pointer overflow-hidden rounded-2xl border border-border bg-card"
       data-dump-type="image"
+      style={{
+        '--node-rotate': `${rotation}deg`,
+        '--float-delay': `${floatDelay}s`,
+        '--float-duration': `${floatDuration}s`,
+      } as React.CSSProperties}
     >
-      {!imageLoaded && !imageFailed ? (
-        <div className="grid aspect-square w-full place-items-center overflow-hidden bg-muted/60">
-          <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.4s_infinite] bg-gradient-to-r from-transparent via-foreground/[0.06] to-transparent" />
-          <ImageIcon className="size-7 text-muted-foreground/40" />
-        </div>
-      ) : null}
-      {image.imageUrl && !imageFailed ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={image.imageUrl}
-          alt={image.title || "Saved image"}
-          className={`block max-h-[28rem] w-full object-contain transition-opacity duration-300 ${
-            imageLoaded ? "opacity-100" : "absolute inset-0 opacity-0"
-          }`}
-          onLoad={() => setImageLoaded(true)}
-          onError={() => setImageFailed(true)}
-        />
-      ) : (
-        <div className="grid aspect-square w-full place-items-center bg-muted">
-          <ImageIcon className="size-12 text-muted-foreground/55" />
-        </div>
-      )}
+      <motion.div
+        style={{ rotateX: tiltX, rotateY: tiltY, transformPerspective: 900 }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
+        {!imageLoaded && !imageFailed ? (
+          <div className="grid aspect-square w-full place-items-center overflow-hidden bg-muted/60">
+            <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.4s_infinite] bg-gradient-to-r from-transparent via-foreground/[0.06] to-transparent" />
+            <ImageIcon className="size-7 text-muted-foreground/40" />
+          </div>
+        ) : null}
+        {image.imageUrl && !imageFailed ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={image.imageUrl}
+            alt={image.title || "Saved image"}
+            className={`block max-h-[28rem] w-full object-contain transition-opacity duration-300 ${
+              imageLoaded ? "opacity-100" : "absolute inset-0 opacity-0"
+            }`}
+            onLoad={() => setImageLoaded(true)}
+            onError={() => setImageFailed(true)}
+          />
+        ) : (
+          <div className="grid aspect-square w-full place-items-center bg-muted">
+            <ImageIcon className="size-12 text-muted-foreground/55" />
+          </div>
+        )}
+      </motion.div>
     </article>
   );
 }
 
 function LinkNode({ data }: NodeProps) {
   const link = data as DumpNodeData;
+  const { rotation = 0, floatDelay = 0, floatDuration = 7 } = link;
+  const { tiltX, tiltY, handleMouseMove, handleMouseLeave } = useTilt();
   const host = getUrlHost(link.sourceUrl);
   const [imageFailed, setImageFailed] = useState(false);
   const [faviconFailed, setFaviconFailed] = useState(false);
@@ -710,9 +778,19 @@ function LinkNode({ data }: NodeProps) {
 
   return (
     <article
-      className="dump-node group relative w-80 cursor-grab overflow-hidden rounded-2xl border border-border bg-card text-card-foreground transition-transform duration-150 active:cursor-grabbing hover:-translate-y-1"
+      className="dump-node group relative w-80 cursor-grab overflow-hidden rounded-2xl border border-border bg-card text-card-foreground active:cursor-grabbing"
       data-dump-type="link"
+      style={{
+        '--node-rotate': `${rotation}deg`,
+        '--float-delay': `${floatDelay}s`,
+        '--float-duration': `${floatDuration}s`,
+      } as React.CSSProperties}
     >
+      <motion.div
+        style={{ rotateX: tiltX, rotateY: tiltY, transformPerspective: 900 }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
       <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-200 dark:bg-slate-800">
         {link.linkImageUrl && !imageFailed ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -763,41 +841,56 @@ function LinkNode({ data }: NodeProps) {
           </a>
         ) : null}
       </div>
+      </motion.div>
     </article>
   );
 }
 
 function PdfNode({ data }: NodeProps) {
   const pdf = data as DumpNodeData;
+  const { rotation = 0, floatDelay = 0, floatDuration = 7 } = pdf;
+  const { tiltX, tiltY, handleMouseMove, handleMouseLeave } = useTilt();
 
   return (
     <article
-      className="dump-node relative flex h-72 w-80 cursor-pointer flex-col rounded-2xl border p-5 text-card-foreground transition-transform duration-150 hover:-translate-y-1"
+      className="dump-node relative h-72 w-80 cursor-pointer rounded-2xl border text-card-foreground"
       data-dump-type="pdf"
+      style={{
+        '--node-rotate': `${rotation}deg`,
+        '--float-delay': `${floatDelay}s`,
+        '--float-duration': `${floatDuration}s`,
+      } as React.CSSProperties}
     >
-      <div className="flex items-start gap-4">
-        <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-emerald-500/12 text-emerald-600 dark:text-emerald-300">
-          <FileText className="size-6" />
+      <motion.div
+        className="flex h-full w-full flex-col p-5"
+        style={{ rotateX: tiltX, rotateY: tiltY, transformPerspective: 900 }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
+        <div className="flex items-start gap-4">
+          <div className="grid size-12 shrink-0 place-items-center rounded-2xl bg-emerald-500/12 text-emerald-600 dark:text-emerald-300">
+            <FileText className="size-6" />
+          </div>
         </div>
-      </div>
-      <h2 className="mt-5 line-clamp-2 font-serif text-2xl font-semibold leading-tight">
-        {pdf.title || "Saved PDF"}
-      </h2>
-      <p className="mt-4 line-clamp-5 text-sm leading-relaxed text-muted-foreground">
-        {pdf.preview || "Extracted PDF text will appear here."}
-      </p>
-      {pdf.sourceUrl ? (
-        <a
-          href={pdf.sourceUrl}
-          target="_blank"
-          rel="noreferrer"
-          className="nodrag nopan mt-auto inline-flex items-center gap-1.5 self-start rounded-full border border-border bg-background px-3 py-2 text-xs font-semibold transition hover:bg-muted"
-          onClick={(event) => event.stopPropagation()}
-        >
-          Open PDF
-          <ExternalLink className="size-3.5" />
-        </a>
-      ) : null}
+        <h2 className="mt-5 line-clamp-2 font-serif text-2xl font-semibold leading-tight">
+          {pdf.title || "Saved PDF"}
+        </h2>
+        <p className="mt-4 line-clamp-5 text-sm leading-relaxed text-muted-foreground">
+          {pdf.preview || "Extracted PDF text will appear here."}
+        </p>
+        {pdf.sourceUrl ? (
+          <a
+            href={pdf.sourceUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="nodrag nopan mt-auto inline-flex items-center gap-1.5 self-start rounded-full border border-border bg-background px-3 py-2 text-xs font-semibold transition hover:bg-muted"
+            onClick={(event) => event.stopPropagation()}
+          >
+            Open PDF
+            <ExternalLink className="size-3.5" />
+          </a>
+        ) : null}
+      </motion.div>
     </article>
   );
 }
@@ -805,6 +898,8 @@ function PdfNode({ data }: NodeProps) {
 function VideoNode({ data }: NodeProps) {
   const [embedFailed, setEmbedFailed] = useState(false);
   const video = data as DumpNodeData;
+  const { rotation = 0, floatDelay = 0, floatDuration = 7 } = video;
+  const { tiltX, tiltY, handleMouseMove, handleMouseLeave } = useTilt();
   const embedUrl = getVideoEmbedUrl(video.sourceUrl);
   const isDirectVideo = Boolean(
     video.sourceUrl &&
@@ -815,35 +910,46 @@ function VideoNode({ data }: NodeProps) {
     <article
       className="dump-node relative w-[23rem] cursor-pointer overflow-hidden rounded-2xl border bg-black text-card-foreground"
       data-dump-type="video"
+      style={{
+        '--node-rotate': `${rotation}deg`,
+        '--float-delay': `${floatDelay}s`,
+        '--float-duration': `${floatDuration}s`,
+      } as React.CSSProperties}
     >
-      <div className="nodrag nopan nowheel relative aspect-video overflow-hidden bg-black">
-        {embedUrl && !embedFailed ? (
-          <iframe
-            src={embedUrl}
-            title={video.title || "Saved video"}
-            className="pointer-events-none h-full w-full border-0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-            loading="lazy"
-            onError={() => setEmbedFailed(true)}
-          />
-        ) : video.sourceUrl && isDirectVideo && !embedFailed ? (
-          <video
-            className="h-full w-full object-contain"
-            preload="auto"
-            muted
-            controls
-            playsInline
-            src={video.sourceUrl}
-            onError={() => setEmbedFailed(true)}
-          />
-        ) : (
-          <div className="grid h-full place-items-center bg-[linear-gradient(145deg,#18181b,#3f3f46)] text-white">
-            <div className="grid size-16 place-items-center rounded-full bg-white/15">
-              <Play className="ml-1 size-7" />
+      <motion.div
+        style={{ rotateX: tiltX, rotateY: tiltY, transformPerspective: 900 }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
+        <div className="nodrag nopan nowheel relative aspect-video overflow-hidden bg-black">
+          {embedUrl && !embedFailed ? (
+            <iframe
+              src={embedUrl}
+              title={video.title || "Saved video"}
+              className="pointer-events-none h-full w-full border-0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+              loading="lazy"
+              onError={() => setEmbedFailed(true)}
+            />
+          ) : video.sourceUrl && isDirectVideo && !embedFailed ? (
+            <video
+              className="h-full w-full object-contain"
+              preload="auto"
+              muted
+              controls
+              playsInline
+              src={video.sourceUrl}
+              onError={() => setEmbedFailed(true)}
+            />
+          ) : (
+            <div className="grid h-full place-items-center bg-[linear-gradient(145deg,#18181b,#3f3f46)] text-white">
+              <div className="grid size-16 place-items-center rounded-full bg-white/15">
+                <Play className="ml-1 size-7" />
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </motion.div>
     </article>
   );
 }
@@ -945,8 +1051,16 @@ function MusicNode({ data }: NodeProps) {
   const [coverFailed, setCoverFailed] = useState(false);
   const [embedFailed, setEmbedFailed] = useState(false);
   const music = data as DumpNodeData;
+  const { rotation = 0, floatDelay = 0, floatDuration = 7 } = music;
+  const { tiltX, tiltY, handleMouseMove, handleMouseLeave } = useTilt();
   const embedUrl = getMusicEmbedUrl(music.sourceUrl);
   const showCoverImage = Boolean(music.coverUrl && !coverFailed);
+  const nodeStyle = {
+    '--node-rotate': `${rotation}deg`,
+    '--float-delay': `${floatDelay}s`,
+    '--float-duration': `${floatDuration}s`,
+  } as React.CSSProperties;
+  const tiltStyle = { rotateX: tiltX, rotateY: tiltY, transformPerspective: 900 };
 
   if (embedUrl && !embedFailed) {
     return (
@@ -954,17 +1068,24 @@ function MusicNode({ data }: NodeProps) {
         className="dump-node relative w-[23rem] cursor-pointer overflow-visible rounded-2xl border bg-black text-card-foreground"
         data-dump-type="music"
         data-music-renderer="embed"
+        style={nodeStyle}
       >
-        <div className="nodrag nopan nowheel relative h-[152px] overflow-hidden rounded-[calc(1rem-1px)] bg-black">
-          <iframe
-            src={embedUrl}
-            title={`Play ${music.title || "music"}`}
-            className="block h-[152px] w-full border-0"
-            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-            loading="lazy"
-            onError={() => setEmbedFailed(true)}
-          />
-        </div>
+        <motion.div
+          style={tiltStyle}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={handleMouseLeave}
+        >
+          <div className="nodrag nopan nowheel relative h-[152px] overflow-hidden rounded-[calc(1rem-1px)] bg-black">
+            <iframe
+              src={embedUrl}
+              title={`Play ${music.title || "music"}`}
+              className="block h-[152px] w-full border-0"
+              allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+              loading="lazy"
+              onError={() => setEmbedFailed(true)}
+            />
+          </div>
+        </motion.div>
       </article>
     );
   }
@@ -974,22 +1095,30 @@ function MusicNode({ data }: NodeProps) {
       className="dump-node relative h-72 w-72 cursor-pointer overflow-hidden rounded-2xl border bg-black text-card-foreground"
       data-dump-type="music"
       data-music-renderer="fallback"
+      style={nodeStyle}
     >
-      {showCoverImage ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={music.coverUrl}
-          alt={`${music.title || "Music"} cover`}
-          className="h-full w-full object-cover"
-          onError={() => setCoverFailed(true)}
-        />
-      ) : (
-        <div className="grid h-full place-items-center bg-[linear-gradient(145deg,#241c39_0%,#72588d_52%,#e8a36d_100%)]">
-          <div className="grid size-20 place-items-center rounded-full border border-white/20 bg-white/15 shadow-inner backdrop-blur">
-            <Music2 className="size-9 text-white/90" />
+      <motion.div
+        className="h-full w-full"
+        style={tiltStyle}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
+        {showCoverImage ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={music.coverUrl}
+            alt={`${music.title || "Music"} cover`}
+            className="h-full w-full object-cover"
+            onError={() => setCoverFailed(true)}
+          />
+        ) : (
+          <div className="grid h-full place-items-center bg-[linear-gradient(145deg,#241c39_0%,#72588d_52%,#e8a36d_100%)]">
+            <div className="grid size-20 place-items-center rounded-full border border-white/20 bg-white/15 shadow-inner backdrop-blur">
+              <Music2 className="size-9 text-white/90" />
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </motion.div>
     </article>
   );
 }
