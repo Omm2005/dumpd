@@ -4,9 +4,12 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
+  Background,
+  BackgroundVariant,
   MiniMap,
   ReactFlow,
   useEdgesState,
@@ -30,6 +33,7 @@ import {
   ExternalLink,
   FileText,
   Image as ImageIcon,
+  Info,
   Layers,
   LayoutGrid,
   Link2,
@@ -39,6 +43,7 @@ import {
   Music2,
   Play,
   Search,
+  StickyNote,
   Trash2,
   X,
 } from "lucide-react";
@@ -46,7 +51,7 @@ import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 
-import { motion, useSpring } from "motion/react";
+import { AnimatePresence, motion, useSpring } from "motion/react";
 
 import { authClient } from "@/lib/auth-client";
 import { SOURCE_FOCUS_EVENT } from "@/lib/chat-sources";
@@ -147,7 +152,7 @@ function useTilt() {
   const tiltY = useSpring(0, { stiffness: 250, damping: 25 });
 
   const handleMouseMove = (e: React.MouseEvent<HTMLElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const cx = rect.left + rect.width / 2;
     const cy = rect.top + rect.height / 2;
     tiltX.set(((e.clientY - cy) / (rect.height / 2)) * -6);
@@ -185,6 +190,7 @@ function dumpToNode(dump: DumpRecord, index: number): Node {
       x: dump.positionX ?? getNodePosition(index, dump.id).x,
       y: dump.positionY ?? getNodePosition(index, dump.id).y,
     },
+    style: { "--entry-delay": `${index * 0.04}s` } as React.CSSProperties,
     data: {
       id: dump.id,
       type: dump.type,
@@ -671,10 +677,13 @@ function WorldNode({ data }: NodeProps) {
 
 function NoteNode({ data }: NodeProps) {
   const note = data as DumpNodeData;
+  const [isFlipped, setIsFlipped] = useState(false);
   const { rotation = 0, floatDelay = 0, floatDuration = 7 } = note;
   const { tiltX, tiltY, handleMouseMove, handleMouseLeave } = useTilt();
   const dumpType = note.type?.toLowerCase() || "note";
   const body = note.markdown?.trim() || note.preview?.trim() || "";
+
+  if (isFlipped) return <CardBack data={note} onFlipBack={() => setIsFlipped(false)} />;
 
   return (
     <div
@@ -714,6 +723,12 @@ function NoteNode({ data }: NodeProps) {
           </span>
         </div>
       </motion.div>
+      <button
+        className="flip-btn nodrag nopan absolute bottom-3 right-3 z-10 rounded-full border border-border/50 bg-background/80 p-1.5 backdrop-blur-sm transition hover:bg-muted"
+        onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
+      >
+        <Info className="h-3 w-3 text-muted-foreground" />
+      </button>
     </div>
   );
 }
@@ -721,9 +736,12 @@ function NoteNode({ data }: NodeProps) {
 function ImageNode({ data }: NodeProps) {
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
+  const [isFlipped, setIsFlipped] = useState(false);
   const image = data as DumpNodeData;
   const { rotation = 0, floatDelay = 0, floatDuration = 7 } = image;
   const { tiltX, tiltY, handleMouseMove, handleMouseLeave } = useTilt();
+
+  if (isFlipped) return <CardBack data={image} onFlipBack={() => setIsFlipped(false)} />;
 
   return (
     <article
@@ -763,18 +781,27 @@ function ImageNode({ data }: NodeProps) {
           </div>
         )}
       </motion.div>
+      <button
+        className="flip-btn nodrag nopan absolute bottom-3 right-3 z-10 rounded-full border border-border/50 bg-background/80 p-1.5 backdrop-blur-sm transition hover:bg-muted"
+        onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
+      >
+        <Info className="h-3 w-3 text-muted-foreground" />
+      </button>
     </article>
   );
 }
 
 function LinkNode({ data }: NodeProps) {
   const link = data as DumpNodeData;
+  const [isFlipped, setIsFlipped] = useState(false);
   const { rotation = 0, floatDelay = 0, floatDuration = 7 } = link;
   const { tiltX, tiltY, handleMouseMove, handleMouseLeave } = useTilt();
   const host = getUrlHost(link.sourceUrl);
   const [imageFailed, setImageFailed] = useState(false);
   const [faviconFailed, setFaviconFailed] = useState(false);
   const faviconUrl = getFaviconUrl(link.sourceUrl);
+
+  if (isFlipped) return <CardBack data={link} onFlipBack={() => setIsFlipped(false)} />;
 
   return (
     <article
@@ -842,14 +869,23 @@ function LinkNode({ data }: NodeProps) {
         ) : null}
       </div>
       </motion.div>
+      <button
+        className="flip-btn nodrag nopan absolute bottom-3 right-3 z-10 rounded-full border border-border/50 bg-background/80 p-1.5 backdrop-blur-sm transition hover:bg-muted"
+        onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
+      >
+        <Info className="h-3 w-3 text-muted-foreground" />
+      </button>
     </article>
   );
 }
 
 function PdfNode({ data }: NodeProps) {
   const pdf = data as DumpNodeData;
+  const [isFlipped, setIsFlipped] = useState(false);
   const { rotation = 0, floatDelay = 0, floatDuration = 7 } = pdf;
   const { tiltX, tiltY, handleMouseMove, handleMouseLeave } = useTilt();
+
+  if (isFlipped) return <CardBack data={pdf} onFlipBack={() => setIsFlipped(false)} />;
 
   return (
     <article
@@ -891,12 +927,19 @@ function PdfNode({ data }: NodeProps) {
           </a>
         ) : null}
       </motion.div>
+      <button
+        className="flip-btn nodrag nopan absolute bottom-3 right-3 z-10 rounded-full border border-border/50 bg-background/80 p-1.5 backdrop-blur-sm transition hover:bg-muted"
+        onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
+      >
+        <Info className="h-3 w-3 text-muted-foreground" />
+      </button>
     </article>
   );
 }
 
 function VideoNode({ data }: NodeProps) {
   const [embedFailed, setEmbedFailed] = useState(false);
+  const [isFlipped, setIsFlipped] = useState(false);
   const video = data as DumpNodeData;
   const { rotation = 0, floatDelay = 0, floatDuration = 7 } = video;
   const { tiltX, tiltY, handleMouseMove, handleMouseLeave } = useTilt();
@@ -905,6 +948,8 @@ function VideoNode({ data }: NodeProps) {
     video.sourceUrl &&
       /\.(?:mp4|webm|mov)(?:$|[?#])/i.test(video.sourceUrl),
   );
+
+  if (isFlipped) return <CardBack data={video} onFlipBack={() => setIsFlipped(false)} />;
 
   return (
     <article
@@ -950,6 +995,12 @@ function VideoNode({ data }: NodeProps) {
           )}
         </div>
       </motion.div>
+      <button
+        className="flip-btn nodrag nopan absolute bottom-3 right-3 z-10 rounded-full border border-border/50 bg-background/80 p-1.5 backdrop-blur-sm transition hover:bg-muted"
+        onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
+      >
+        <Info className="h-3 w-3 text-muted-foreground" />
+      </button>
     </article>
   );
 }
@@ -1050,6 +1101,7 @@ function MediaFocusDialog({
 function MusicNode({ data }: NodeProps) {
   const [coverFailed, setCoverFailed] = useState(false);
   const [embedFailed, setEmbedFailed] = useState(false);
+  const [isFlipped, setIsFlipped] = useState(false);
   const music = data as DumpNodeData;
   const { rotation = 0, floatDelay = 0, floatDuration = 7 } = music;
   const { tiltX, tiltY, handleMouseMove, handleMouseLeave } = useTilt();
@@ -1061,6 +1113,8 @@ function MusicNode({ data }: NodeProps) {
     '--float-duration': `${floatDuration}s`,
   } as React.CSSProperties;
   const tiltStyle = { rotateX: tiltX, rotateY: tiltY, transformPerspective: 900 };
+
+  if (isFlipped) return <CardBack data={music} onFlipBack={() => setIsFlipped(false)} />;
 
   if (embedUrl && !embedFailed) {
     return (
@@ -1086,6 +1140,12 @@ function MusicNode({ data }: NodeProps) {
             />
           </div>
         </motion.div>
+        <button
+          className="flip-btn nodrag nopan absolute bottom-3 right-3 z-10 rounded-full border border-border/50 bg-background/80 p-1.5 backdrop-blur-sm transition hover:bg-muted"
+          onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
+        >
+          <Info className="h-3 w-3 text-muted-foreground" />
+        </button>
       </article>
     );
   }
@@ -1119,7 +1179,109 @@ function MusicNode({ data }: NodeProps) {
           </div>
         )}
       </motion.div>
+      <button
+        className="flip-btn nodrag nopan absolute bottom-3 right-3 z-10 rounded-full border border-border/50 bg-background/80 p-1.5 backdrop-blur-sm transition hover:bg-muted"
+        onClick={(e) => { e.stopPropagation(); setIsFlipped(true); }}
+      >
+        <Info className="h-3 w-3 text-muted-foreground" />
+      </button>
     </article>
+  );
+}
+
+type StickyColor = "yellow" | "pink" | "blue" | "green" | "orange";
+
+const STICKY_PALETTE: Record<StickyColor, { bg: string; fold: string; textColor: string }> = {
+  yellow: { bg: "#fff9c4", fold: "#fff0a0", textColor: "#5c4200" },
+  pink:   { bg: "#ffd7eb", fold: "#ffc0df", textColor: "#5c003a" },
+  blue:   { bg: "#d7eeff", fold: "#bde4ff", textColor: "#003d5c" },
+  green:  { bg: "#d7f5e3", fold: "#bfedcf", textColor: "#004020" },
+  orange: { bg: "#ffe8c4", fold: "#ffd9a0", textColor: "#5c2a00" },
+};
+
+type StickyNodeData = {
+  text?: string;
+  color?: StickyColor;
+  rotation?: number;
+  floatDelay?: number;
+  floatDuration?: number;
+  onUpdate?: (id: string, updates: { text?: string; color?: StickyColor }) => void;
+  onDelete?: (id: string) => void;
+};
+
+function StickyNode({ data, id }: NodeProps) {
+  const sticky = data as StickyNodeData;
+  const { rotation = 0, floatDelay = 0, floatDuration = 7 } = sticky;
+  const { tiltX, tiltY, handleMouseMove, handleMouseLeave } = useTilt();
+  const [color, setColor] = useState<StickyColor>(sticky.color ?? "yellow");
+  const [showControls, setShowControls] = useState(false);
+  const palette = STICKY_PALETTE[color];
+
+  const handleColorChange = (newColor: StickyColor) => {
+    setColor(newColor);
+    sticky.onUpdate?.(id, { color: newColor });
+  };
+
+  return (
+    <div
+      className="sticky-node relative w-44 cursor-pointer rounded-xl overflow-hidden"
+      style={{
+        '--node-rotate': `${rotation}deg`,
+        '--float-delay': `${floatDelay}s`,
+        '--float-duration': `${floatDuration}s`,
+        background: palette.bg,
+      } as React.CSSProperties}
+      onMouseEnter={() => setShowControls(true)}
+      onMouseLeave={() => setShowControls(false)}
+    >
+      {/* Controls: color picker + delete — float above card */}
+      {showControls && (
+        <div className="nodrag nopan absolute -top-9 left-0 z-50 flex items-center gap-1.5 rounded-full border border-border/60 bg-card/95 px-2.5 py-1.5 shadow-sm backdrop-blur-md">
+          {(Object.keys(STICKY_PALETTE) as StickyColor[]).map((c) => (
+            <button
+              key={c}
+              type="button"
+              aria-label={c}
+              className="size-3.5 cursor-pointer rounded-full transition-transform hover:scale-110"
+              style={{
+                background: STICKY_PALETTE[c].bg,
+                outline: c === color ? `2px solid ${STICKY_PALETTE[c].textColor}` : "2px solid transparent",
+                outlineOffset: "1px",
+              }}
+              onClick={() => handleColorChange(c)}
+            />
+          ))}
+          <div className="mx-0.5 h-3.5 w-px bg-border/70" />
+          <button
+            type="button"
+            aria-label="Delete sticky note"
+            className="grid size-4 cursor-pointer place-items-center rounded-full text-muted-foreground transition hover:bg-red-100 hover:text-red-600"
+            onClick={() => sticky.onDelete?.(id)}
+          >
+            <X className="size-3" />
+          </button>
+        </div>
+      )}
+
+      {/* Top fold strip */}
+      <div className="h-6 w-full" style={{ background: palette.fold }} />
+
+      <motion.div
+        className="p-3"
+        style={{ rotateX: tiltX, rotateY: tiltY, transformPerspective: 900 }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
+        <textarea
+          className="nodrag nopan w-full resize-none bg-transparent text-sm font-medium leading-relaxed outline-none placeholder:opacity-40"
+          style={{ color: palette.textColor, minHeight: "96px" }}
+          defaultValue={sticky.text}
+          placeholder="Type a note…"
+          onBlur={(e) => sticky.onUpdate?.(id, { text: e.target.value })}
+          rows={4}
+        />
+      </motion.div>
+    </div>
   );
 }
 
@@ -1308,6 +1470,74 @@ function ManageDumpsDialog({
 
 // Render a dump's card outside of React Flow (used by the grid layout). The
 // node components only read `data`, so we can render them as standalone cards.
+function CardBack({ data, onFlipBack }: { data: DumpNodeData; onFlipBack: () => void }) {
+  const { rotation = 0, floatDelay = 0, floatDuration = 7 } = data;
+  const { tiltX, tiltY, handleMouseMove, handleMouseLeave } = useTilt();
+  return (
+    <div
+      className="dump-node dump-node--back relative h-[26rem] w-80 cursor-pointer rounded-2xl border text-card-foreground"
+      style={{ "--node-rotate": `${rotation}deg`, "--float-delay": `${floatDelay}s`, "--float-duration": `${floatDuration}s` } as React.CSSProperties}
+    >
+      <motion.div
+        className="flex h-full flex-col p-5"
+        style={{ rotateX: tiltX, rotateY: tiltY, transformPerspective: 900 }}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{data.type ?? "item"}</span>
+          <button
+            className="nodrag nopan ml-auto rounded-full p-1 transition hover:bg-muted"
+            onClick={onFlipBack}
+          >
+            <X className="h-3.5 w-3.5 text-muted-foreground" />
+          </button>
+        </div>
+
+        <h2 className="mt-3 font-serif text-xl font-semibold leading-tight text-foreground">
+          {data.title ?? "Untitled"}
+        </h2>
+
+        {data.sourceUrl && (
+          <a
+            href={data.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="nodrag nopan mt-2 truncate text-xs text-blue-500 hover:underline"
+          >
+            {data.sourceUrl}
+          </a>
+        )}
+
+        {data.notes ? (
+          <p className="mt-3 line-clamp-5 text-sm leading-relaxed text-muted-foreground">{data.notes}</p>
+        ) : data.description ? (
+          <p className="mt-3 line-clamp-5 text-sm leading-relaxed text-muted-foreground">{data.description}</p>
+        ) : null}
+
+        {data.artist && (
+          <p className="mt-3 text-sm text-muted-foreground">
+            {data.artist}
+            {data.album ? ` · ${data.album}` : ""}
+            {data.releaseYear ? ` (${data.releaseYear})` : ""}
+          </p>
+        )}
+
+        {data.createdAt && (
+          <p className="mt-auto border-t border-border/30 pt-3 text-xs text-muted-foreground/60">
+            Added{" "}
+            {new Date(data.createdAt).toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            })}
+          </p>
+        )}
+      </motion.div>
+    </div>
+  );
+}
+
 function renderDumpCard(node: Node) {
   const props = { data: node.data } as unknown as NodeProps;
   switch (node.type) {
@@ -1344,7 +1574,33 @@ export function HomeFlow() {
   const [manageSearch, setManageSearch] = useState("");
   const [layoutMode, setLayoutMode] = useState<LayoutMode>("free");
   const [reminder, setReminder] = useState<DumpRecord | null>(null);
+  const [stickyNodes, setStickyNodes] = useState<Node[]>([]);
+  const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
   const isSignedIn = Boolean(session);
+
+  const spotlightRef = useRef<HTMLDivElement>(null);
+  const handleSpotlightMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!spotlightRef.current) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    spotlightRef.current.style.setProperty("--spotlight-x", `${e.clientX - rect.left}px`);
+    spotlightRef.current.style.setProperty("--spotlight-y", `${e.clientY - rect.top}px`);
+  }, []);
+
+  const stickyHandlerRef = useRef<{
+    update: (id: string, updates: { text?: string; color?: StickyColor }) => void;
+    delete: (id: string) => void;
+  }>({ update: () => {}, delete: () => {} });
+
+  const stableStickyUpdate = useCallback(
+    (id: string, updates: { text?: string; color?: StickyColor }) =>
+      stickyHandlerRef.current.update(id, updates),
+    [],
+  );
+
+  const stableStickyDelete = useCallback(
+    (id: string) => stickyHandlerRef.current.delete(id),
+    [],
+  );
 
   useEffect(() => {
     const stored = localStorage.getItem("dumpd:layout");
@@ -1352,6 +1608,81 @@ export function HomeFlow() {
       setLayoutMode(stored);
     }
   }, []);
+
+  // Keep sticky handler ref current with latest state
+  useEffect(() => {
+    stickyHandlerRef.current = {
+      update: (id, updates) => {
+        setStickyNodes((prev) => {
+          const updated = prev.map((n) =>
+            n.id === id ? { ...n, data: { ...n.data, ...updates } } : n,
+          );
+          if (activeWorldId) {
+            localStorage.setItem(
+              `dumpd:stickies:${activeWorldId}`,
+              JSON.stringify(updated.map((n) => ({
+                id: n.id,
+                text: (n.data as StickyNodeData).text ?? "",
+                color: (n.data as StickyNodeData).color ?? "yellow",
+                x: n.position.x,
+                y: n.position.y,
+              }))),
+            );
+          }
+          return updated;
+        });
+      },
+      delete: (id) => {
+        setStickyNodes((prev) => {
+          const updated = prev.filter((n) => n.id !== id);
+          if (activeWorldId) {
+            localStorage.setItem(
+              `dumpd:stickies:${activeWorldId}`,
+              JSON.stringify(updated.map((n) => ({
+                id: n.id,
+                text: (n.data as StickyNodeData).text ?? "",
+                color: (n.data as StickyNodeData).color ?? "yellow",
+                x: n.position.x,
+                y: n.position.y,
+              }))),
+            );
+          }
+          return updated;
+        });
+      },
+    };
+  });
+
+  // Load sticky notes from localStorage when world changes
+  useEffect(() => {
+    if (!activeWorldId) {
+      setStickyNodes([]);
+      return;
+    }
+    try {
+      const raw = localStorage.getItem(`dumpd:stickies:${activeWorldId}`);
+      const stored: { id: string; text: string; color: StickyColor; x: number; y: number }[] =
+        raw ? JSON.parse(raw) : [];
+      setStickyNodes(
+        stored.map((s) => ({
+          id: s.id,
+          type: "sticky",
+          position: { x: s.x, y: s.y },
+          data: {
+            text: s.text,
+            color: s.color,
+            rotation: getNodeRotation(s.id),
+            floatDelay: -(nodeHash(s.id) % 800) / 100,
+            floatDuration: 6 + (nodeHash(s.id) >> 4) % 3,
+            onUpdate: stableStickyUpdate,
+            onDelete: stableStickyDelete,
+          },
+        })),
+      );
+    } catch {
+      setStickyNodes([]);
+    }
+  }, [activeWorldId, stableStickyUpdate, stableStickyDelete]);
 
   const handleLayoutModeChange = useCallback(
     (value: LayoutMode) => {
@@ -1483,15 +1814,21 @@ export function HomeFlow() {
 
   const displayedNodes = useMemo(
     () =>
-      nodes.map((node) => ({
+      [...nodes, ...stickyNodes].map((node) => ({
         ...node,
-        className: focusedSourceId
-          ? node.id === focusedSourceId
-            ? "source-focus-active"
-            : "source-focus-muted"
-          : undefined,
+        className:
+          [
+            focusedSourceId
+              ? node.id === focusedSourceId
+                ? "source-focus-active"
+                : "source-focus-muted"
+              : null,
+            draggingNodeId === node.id ? "is-dragging" : null,
+          ]
+            .filter(Boolean)
+            .join(" ") || undefined,
       })),
-    [focusedSourceId, nodes],
+    [focusedSourceId, nodes, stickyNodes, draggingNodeId],
   );
 
   const nodeTypes = useMemo(
@@ -1503,6 +1840,7 @@ export function HomeFlow() {
       video: VideoNode,
       music: MusicNode,
       world: WorldNode,
+      sticky: StickyNode,
     }),
     [],
   );
@@ -1797,8 +2135,74 @@ export function HomeFlow() {
     [hoveredNodeId],
   );
 
+  const handleAddSticky = useCallback(() => {
+    if (!activeWorldId) return;
+    const id = `sticky-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const viewport = flowInstance?.getViewport() ?? { x: 0, y: 0, zoom: 1 };
+    const newSticky: Node = {
+      id,
+      type: "sticky",
+      position: {
+        x: (window.innerWidth / 2 - viewport.x) / viewport.zoom - 88,
+        y: (window.innerHeight / 2 - viewport.y) / viewport.zoom - 80,
+      },
+      data: {
+        text: "",
+        color: "yellow" as StickyColor,
+        rotation: getNodeRotation(id),
+        floatDelay: -(nodeHash(id) % 800) / 100,
+        floatDuration: 6 + (nodeHash(id) >> 4) % 3,
+        onUpdate: stableStickyUpdate,
+        onDelete: stableStickyDelete,
+      },
+    };
+    setStickyNodes((prev) => {
+      const updated = [...prev, newSticky];
+      localStorage.setItem(
+        `dumpd:stickies:${activeWorldId}`,
+        JSON.stringify(updated.map((n) => ({
+          id: n.id,
+          text: (n.data as StickyNodeData).text ?? "",
+          color: (n.data as StickyNodeData).color ?? "yellow",
+          x: n.position.x,
+          y: n.position.y,
+        }))),
+      );
+      return updated;
+    });
+  }, [activeWorldId, flowInstance, stableStickyUpdate, stableStickyDelete]);
+
+  const handleNodeDragStart = useCallback(
+    (_event: MouseEvent | TouchEvent, node: Node) => {
+      setDraggingNodeId(node.id);
+    },
+    [],
+  );
+
   const handleNodeDragStop = useCallback(
     async (_event: MouseEvent | TouchEvent, node: Node) => {
+      setDraggingNodeId(null);
+      if (node.type === "sticky") {
+        setStickyNodes((prev) => {
+          const updated = prev.map((n) =>
+            n.id === node.id ? { ...n, position: node.position } : n,
+          );
+          if (activeWorldId) {
+            localStorage.setItem(
+              `dumpd:stickies:${activeWorldId}`,
+              JSON.stringify(updated.map((n) => ({
+                id: n.id,
+                text: (n.data as StickyNodeData).text ?? "",
+                color: (n.data as StickyNodeData).color ?? "yellow",
+                x: n.position.x,
+                y: n.position.y,
+              }))),
+            );
+          }
+          return updated;
+        });
+        return;
+      }
       try {
         const isWorld = node.type === "world";
         const response = await fetch(
@@ -1847,7 +2251,7 @@ export function HomeFlow() {
         );
       }
     },
-    [],
+    [activeWorldId],
   );
 
   const minimapStyle = useMemo(
@@ -1861,78 +2265,110 @@ export function HomeFlow() {
   );
 
   const showGrid = layoutMode === "grid" && Boolean(activeWorldId);
+  const activeWorldColor = worlds.find((w) => w.id === activeWorldId)?.color ?? null;
 
   return (
-    <div className="relative h-svh w-full">
-      {showGrid ? (
-        <div className="h-svh w-full overflow-y-auto bg-background">
-          <div className="mx-auto flex max-w-6xl flex-wrap items-start justify-center gap-6 px-5 pb-36 pt-24 md:px-8">
-            {nodes.map((node) => (
-              <div
-                key={node.id}
-                id={`grid-card-${node.id}`}
-                onClick={(event) => handleNodeClick(event, node)}
-                className={`transition-all duration-200 ${
-                  focusedSourceId === node.id
-                    ? "scale-[1.02]"
-                    : focusedSourceId
-                      ? "opacity-40"
-                      : ""
-                }`}
-              >
-                {renderDumpCard(node)}
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <ReactFlow
-          key={activeWorldId}
-        nodes={displayedNodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        onInit={setFlowInstance}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onNodeClick={handleNodeClick}
-        onNodeMouseEnter={handleNodeMouseEnter}
-        onNodeMouseLeave={handleNodeMouseLeave}
-        onNodeDragStop={handleNodeDragStop}
-        deleteKeyCode={null}
-        nodesConnectable={false}
-        fitView
-        minZoom={0.6}
-        maxZoom={1.4}
-        defaultEdgeOptions={{
-          type: "smoothstep",
-          style: {
-            stroke: "var(--muted-foreground)",
-            strokeWidth: 1.5,
-          },
-        }}
-        className="bg-background"
-        proOptions={{ hideAttribution: true }}
-      >
-        <MiniMap
-          pannable
-          zoomable
-          className="hidden !overflow-hidden !rounded-[18px] !bg-card md:block"
-          nodeColor={(node) =>
-            (node.data as { minimapColor?: string })?.minimapColor ??
-            getDumpTypeColor((node.data as { type?: string })?.type)
-          }
-          nodeStrokeColor={(node) =>
-            (node.data as { minimapColor?: string })?.minimapColor ??
-            getDumpTypeColor((node.data as { type?: string })?.type)
-          }
-          nodeStrokeWidth={3}
-          nodeBorderRadius={6}
-          nodeClassName={getMiniMapNodeClassName}
-          maskColor="color-mix(in oklab, var(--background) 72%, transparent)"
-          style={minimapStyle}
+    <div
+      className={`relative h-svh w-full${activeWorldColor ? ` world-${activeWorldColor}` : ""}`}
+      onMouseMove={handleSpotlightMove}
+    >
+      {!showGrid && (
+        <div
+          ref={spotlightRef}
+          className="spotlight-overlay pointer-events-none absolute inset-0 z-[1]"
         />
-        </ReactFlow>
       )}
+      <AnimatePresence mode="wait">
+        {showGrid ? (
+          <motion.div
+            key="grid"
+            className="h-full w-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+          >
+            <div className="h-svh w-full overflow-y-auto bg-background">
+              <div className="mx-auto flex max-w-6xl flex-wrap items-start justify-center gap-6 px-5 pb-36 pt-24 md:px-8">
+                {nodes.map((node, index) => (
+                  <div
+                    key={node.id}
+                    id={`grid-card-${node.id}`}
+                    onClick={(event) => handleNodeClick(event, node)}
+                    className={`grid-card-animate transition-all duration-200 ${
+                      focusedSourceId === node.id
+                        ? "scale-[1.02]"
+                        : focusedSourceId
+                          ? "opacity-40"
+                          : ""
+                    }`}
+                    style={{ "--entry-delay": `${index * 0.035}s` } as React.CSSProperties}
+                  >
+                    {renderDumpCard(node)}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="canvas"
+            className="h-full w-full"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.18 }}
+          >
+            <ReactFlow
+              key={activeWorldId}
+              nodes={displayedNodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              onInit={setFlowInstance}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onNodeClick={handleNodeClick}
+              onNodeMouseEnter={handleNodeMouseEnter}
+              onNodeMouseLeave={handleNodeMouseLeave}
+              onNodeDragStart={handleNodeDragStart}
+              onNodeDragStop={handleNodeDragStop}
+              deleteKeyCode={null}
+              nodesConnectable={false}
+              fitView
+              minZoom={0.6}
+              maxZoom={1.4}
+              defaultEdgeOptions={{
+                type: "smoothstep",
+                style: {
+                  stroke: "var(--muted-foreground)",
+                  strokeWidth: 1.5,
+                },
+              }}
+              proOptions={{ hideAttribution: true }}
+            >
+              <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} />
+              <MiniMap
+                pannable
+                zoomable
+                className="hidden !overflow-hidden !rounded-[18px] !bg-card md:block"
+                nodeColor={(node) =>
+                  (node.data as { minimapColor?: string })?.minimapColor ??
+                  getDumpTypeColor((node.data as { type?: string })?.type)
+                }
+                nodeStrokeColor={(node) =>
+                  (node.data as { minimapColor?: string })?.minimapColor ??
+                  getDumpTypeColor((node.data as { type?: string })?.type)
+                }
+                nodeStrokeWidth={3}
+                nodeBorderRadius={6}
+                nodeClassName={getMiniMapNodeClassName}
+                maskColor="color-mix(in oklab, var(--background) 72%, transparent)"
+                style={minimapStyle}
+              />
+            </ReactFlow>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {isSignedIn && activeWorldId ? (
         <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] left-3 z-20 flex items-center gap-0.5 rounded-full border border-border/70 bg-card/80 p-1 shadow-sm backdrop-blur-xl md:left-4">
           {LAYOUT_OPTIONS.map(({ value, label, icon: Icon }) => (
@@ -1952,6 +2388,21 @@ export function HomeFlow() {
               {label}
             </button>
           ))}
+          {layoutMode === "free" && (
+            <>
+              <div className="mx-0.5 h-5 w-px bg-border/60" />
+              <button
+                type="button"
+                aria-label="Add sticky note"
+                title="Add sticky note"
+                onClick={handleAddSticky}
+                className="flex h-8 cursor-pointer items-center gap-1.5 rounded-full px-3 text-xs font-medium text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              >
+                <StickyNote className="size-3.5" />
+                Note
+              </button>
+            </>
+          )}
         </div>
       ) : null}
       {reminder ? (

@@ -21,6 +21,34 @@ body {
     filter 0.2s ease;
 }
 
+/* World color CSS vars — cascade into spotlight, thumbtacks, dot grid */
+:root {
+  --world-spotlight: oklch(70% 0.08 270 / 0.06);
+  --world-pin-light: oklch(72% 0.10 270);
+  --world-pin-dark:  oklch(45% 0.12 270);
+  --world-dots: oklch(40% 0 0 / 14%);
+}
+.world-amber   { --world-spotlight: oklch(82% 0.10 75 / 0.09);   --world-pin-light: oklch(82% 0.14 75);   --world-pin-dark: oklch(58% 0.14 75);   --world-dots: oklch(75% 0.08 75 / 12%); }
+.world-sky     { --world-spotlight: oklch(75% 0.09 220 / 0.09);  --world-pin-light: oklch(72% 0.11 220);  --world-pin-dark: oklch(48% 0.12 220);  --world-dots: oklch(65% 0.07 220 / 12%); }
+.world-rose    { --world-spotlight: oklch(73% 0.11 5 / 0.09);    --world-pin-light: oklch(73% 0.12 5);    --world-pin-dark: oklch(50% 0.13 5);    --world-dots: oklch(68% 0.08 5 / 12%); }
+.world-emerald { --world-spotlight: oklch(75% 0.11 155 / 0.09);  --world-pin-light: oklch(73% 0.12 155);  --world-pin-dark: oklch(50% 0.13 155);  --world-dots: oklch(66% 0.09 155 / 12%); }
+.world-violet  { --world-spotlight: oklch(72% 0.13 285 / 0.09);  --world-pin-light: oklch(70% 0.13 285);  --world-pin-dark: oklch(48% 0.14 285);  --world-dots: oklch(62% 0.10 285 / 12%); }
+.world-stone   { --world-spotlight: oklch(66% 0.02 60 / 0.09);   --world-pin-light: oklch(65% 0.03 60);   --world-pin-dark: oklch(45% 0.04 60);   --world-dots: oklch(55% 0.02 60 / 12%); }
+.dark .world-amber   { --world-dots: oklch(82% 0.06 75 / 10%); }
+.dark .world-sky     { --world-dots: oklch(72% 0.07 220 / 10%); }
+.dark .world-rose    { --world-dots: oklch(75% 0.07 5 / 10%); }
+.dark .world-emerald { --world-dots: oklch(74% 0.08 155 / 10%); }
+.dark .world-violet  { --world-dots: oklch(70% 0.09 285 / 10%); }
+.dark .world-stone   { --world-dots: oklch(68% 0.02 60 / 10%); }
+
+.react-flow__background {
+  --xy-background-pattern-color: var(--world-dots, oklch(40% 0 0 / 14%));
+}
+
+.dark .react-flow__background {
+  --xy-background-pattern-color: var(--world-dots, oklch(80% 0 0 / 12%));
+}
+
 .react-flow:has(.react-flow__node:hover) .react-flow__node:not(:hover) {
   filter: blur(2.5px);
 }
@@ -61,6 +89,21 @@ body {
   }
 }
 
+@keyframes card-spring-in {
+  0% {
+    opacity: 0;
+    transform: rotate(var(--node-rotate, 0deg)) translateY(28px) scale(0.92);
+  }
+  65% {
+    opacity: 1;
+    transform: rotate(var(--node-rotate, 0deg)) translateY(-4px) scale(1.01);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(var(--node-rotate, 0deg)) translateY(0px) scale(1);
+  }
+}
+
 .dump-node {
   position: relative;
   background: var(--card);
@@ -70,11 +113,29 @@ body {
     0 2px 4px rgba(0, 0, 0, 0.04),
     0 8px 20px rgba(0, 0, 0, 0.08),
     0 20px 40px rgba(0, 0, 0, 0.05) !important;
-  animation: pin-float var(--float-duration, 7s) ease-in-out infinite;
-  animation-delay: var(--float-delay, 0s);
-  animation-fill-mode: both;
+  animation:
+    card-spring-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) var(--entry-delay, 0s) both,
+    pin-float var(--float-duration, 7s) ease-in-out
+      calc(var(--entry-delay, 0s) + 0.5s + var(--float-delay, 0s)) infinite both;
   will-change: transform;
   transition: box-shadow 0.3s ease;
+}
+
+/* Cursor spotlight overlay — color controlled by --world-spotlight var */
+.spotlight-overlay {
+  background: radial-gradient(
+    400px circle at var(--spotlight-x, -999px) var(--spotlight-y, -999px),
+    var(--world-spotlight, oklch(70% 0.08 270 / 0.06)),
+    transparent 70%
+  );
+}
+
+.dark .spotlight-overlay {
+  background: radial-gradient(
+    400px circle at var(--spotlight-x, -999px) var(--spotlight-y, -999px),
+    var(--world-spotlight, oklch(75% 0.10 270 / 0.10)),
+    transparent 70%
+  );
 }
 
 .react-flow__node:hover .dump-node {
@@ -85,10 +146,47 @@ body {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dump-node {
+  .dump-node,
+  .sticky-node {
     animation: none;
     transform: none;
   }
+}
+
+/* Thumbtack pin at top of each card */
+.dump-node::before {
+  content: '';
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, var(--world-pin-light, oklch(72% 0.10 270)), var(--world-pin-dark, oklch(45% 0.12 270)));
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  z-index: 20;
+  pointer-events: none;
+}
+
+/* Post-it sticky notes */
+.sticky-node {
+  position: relative;
+  outline: none;
+  animation: pin-float var(--float-duration, 7s) ease-in-out infinite;
+  animation-delay: var(--float-delay, 0s);
+  animation-fill-mode: both;
+  will-change: transform;
+  transition: box-shadow 0.3s ease;
+  box-shadow:
+    2px 3px 8px rgba(0, 0, 0, 0.12),
+    0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.react-flow__node:hover .sticky-node {
+  box-shadow:
+    3px 6px 18px rgba(0, 0, 0, 0.18),
+    0 2px 4px rgba(0, 0, 0, 0.10);
 }
 
 @keyframes shimmer {
@@ -201,4 +299,48 @@ body {
   .react-flow__minimap {
     display: none;
   }
+}
+
+/* Card flip reveal animation */
+@keyframes card-flip-reveal {
+  from {
+    opacity: 0;
+    transform: rotate(var(--node-rotate, 0deg)) rotateY(-15deg) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: rotate(var(--node-rotate, 0deg)) rotateY(0deg) scale(1);
+  }
+}
+
+/* Back face: skip spring-in, use flip-reveal, then float */
+.dump-node.dump-node--back {
+  animation:
+    card-flip-reveal 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both,
+    pin-float var(--float-duration, 7s) ease-in-out 0.35s infinite both;
+}
+
+/* Flip info button: hidden by default, visible on card hover */
+.dump-node .flip-btn {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.react-flow__node:hover .dump-node .flip-btn,
+.dump-node:hover .flip-btn {
+  opacity: 1;
+}
+
+/* Drag lift: deeper shadow when dragging */
+.is-dragging .dump-node {
+  box-shadow:
+    0 12px 24px rgba(0, 0, 0, 0.14),
+    0 32px 56px rgba(0, 0, 0, 0.20),
+    0 56px 80px rgba(0, 0, 0, 0.12) !important;
+  transition: box-shadow 0.15s ease;
+  cursor: grabbing !important;
+}
+
+/* Grid card stagger spring-in (reuses card-spring-in keyframe) */
+.grid-card-animate {
+  animation: card-spring-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) var(--entry-delay, 0s) both;
 }
