@@ -29,6 +29,7 @@ import {
   ExternalLink,
   FileText,
   Image as ImageIcon,
+  Instagram,
   Layers,
   Link2,
   Loader2,
@@ -36,6 +37,7 @@ import {
   Music2,
   Play,
   Search,
+  StickyNote,
   Trash2,
 } from "lucide-react";
 import Markdown from "react-markdown";
@@ -65,6 +67,8 @@ const dumpTypeColors: Record<string, string> = {
   music: "#8b5cf6",
   video: "#ef4444",
   document: "#10b981",
+  instagram: "#E1306C",
+  reel: "#E1306C",
 };
 
 const worldTypeColors: Record<WorldColor, string> = {
@@ -115,7 +119,9 @@ function dumpToNode(dump: DumpRecord, index: number): Node {
             ? "video"
             : dumpType === "music"
               ? "music"
-              : "note";
+              : dumpType === "instagram" || dumpType === "reel"
+                ? "link"
+                : "note";
 
   return {
     id: dump.id,
@@ -628,9 +634,13 @@ function NoteNode({ data }: NodeProps) {
         )}
       </div>
 
-      <div className="mt-4 border-t border-border/50 pt-3">
-        <span className="truncate text-sm font-semibold text-foreground">
-          {note.title || "Untitled"}
+      <div className="mt-4 flex items-center gap-2 border-t border-border/50 pt-3">
+        <span
+          className="size-2 shrink-0 rounded-full"
+          style={{ backgroundColor: getDumpTypeColor(note.type) }}
+        />
+        <span className="text-xs capitalize text-muted-foreground">
+          {note.type || "note"}
         </span>
       </div>
     </div>
@@ -785,7 +795,7 @@ function VideoNode({ data }: NodeProps) {
 
   return (
     <article
-      className="dump-node relative w-[23rem] cursor-pointer overflow-hidden rounded-[2rem] border-4 bg-black text-card-foreground"
+      className="dump-node relative w-80 cursor-pointer overflow-hidden rounded-[2rem] border-4 bg-black text-card-foreground"
       data-dump-type="video"
     >
       <div className="nodrag nopan nowheel relative aspect-video overflow-hidden bg-black">
@@ -923,7 +933,7 @@ function MusicNode({ data }: NodeProps) {
   if (embedUrl && !embedFailed) {
     return (
       <article
-        className="dump-node relative w-[23rem] cursor-pointer overflow-visible rounded-[2rem] border-4 bg-black text-card-foreground"
+        className="dump-node relative w-80 cursor-pointer overflow-visible rounded-[2rem] border-4 bg-black text-card-foreground"
         data-dump-type="music"
         data-music-renderer="embed"
       >
@@ -968,6 +978,7 @@ function MusicNode({ data }: NodeProps) {
 
 function DumpTypeIcon({ type, className }: { type: string; className?: string }) {
   const key = type.toLowerCase();
+  if (key === "note") return <StickyNote className={className} />;
   if (key === "photo" || key === "image")
     return <ImageIcon className={className} />;
   if (key === "article" || key === "link") return <Link2 className={className} />;
@@ -976,7 +987,9 @@ function DumpTypeIcon({ type, className }: { type: string; className?: string })
   if (key === "video") return <Play className={className} />;
   if (key === "music" || key === "audio")
     return <Music2 className={className} />;
-  return <FileText className={className} />;
+  if (key === "instagram" || key === "reel")
+    return <Instagram className={className} />;
+  return <StickyNote className={className} />;
 }
 
 function ManageDumpRow({
@@ -1066,6 +1079,20 @@ function ManageDumpRow({
   );
 }
 
+const DUMP_TYPE_ORDER = [
+  { key: "note", label: "Notes" },
+  { key: "article", label: "Articles" },
+  { key: "link", label: "Links" },
+  { key: "photo", label: "Photos" },
+  { key: "image", label: "Images" },
+  { key: "music", label: "Music" },
+  { key: "video", label: "Videos" },
+  { key: "document", label: "Documents" },
+  { key: "pdf", label: "PDFs" },
+  { key: "instagram", label: "Instagram" },
+  { key: "reel", label: "Reels" },
+];
+
 function ManageDumpsDialog({
   open,
   onOpenChange,
@@ -1098,6 +1125,36 @@ function ManageDumpsDialog({
     );
   }, [dumps, search]);
 
+  const grouped = useMemo(() => {
+    const map = new Map<string, DumpRecord[]>();
+    for (const dump of filtered) {
+      const key = dump.type.toLowerCase();
+      const existing = map.get(key);
+      if (existing) {
+        existing.push(dump);
+      } else {
+        map.set(key, [dump]);
+      }
+    }
+    const result: Array<{ key: string; label: string; items: DumpRecord[] }> =
+      [];
+    for (const { key, label } of DUMP_TYPE_ORDER) {
+      const items = map.get(key);
+      if (items) {
+        result.push({ key, label, items });
+        map.delete(key);
+      }
+    }
+    for (const [key, items] of map) {
+      result.push({
+        key,
+        label: key.charAt(0).toUpperCase() + key.slice(1),
+        items,
+      });
+    }
+    return result;
+  }, [filtered]);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[85svh] flex-col gap-0 overflow-hidden p-0 sm:max-w-lg">
@@ -1109,7 +1166,7 @@ function ManageDumpsDialog({
               world. Deleting is permanent.
             </DialogDescription>
           </div>
-          <div className="relative w-full max-w-xs">
+          <div className="relative w-full">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               autoFocus
@@ -1133,15 +1190,35 @@ function ManageDumpsDialog({
                 : "No dumps match your search."}
             </p>
           ) : (
-            <ul className="space-y-2">
-              {filtered.map((dump) => (
-                <ManageDumpRow
-                  key={dump.id}
-                  dump={dump}
-                  onDelete={onDelete}
-                />
+            <div className="space-y-5">
+              {grouped.map(({ key, label, items }) => (
+                <div key={key}>
+                  <div className="mb-2 flex items-center gap-2">
+                    <span
+                      className="grid size-5 shrink-0 place-items-center rounded-md text-white"
+                      style={{ backgroundColor: getDumpTypeColor(key) }}
+                    >
+                      <DumpTypeIcon type={key} className="size-3" />
+                    </span>
+                    <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                      {label}
+                    </h3>
+                    <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                      {items.length}
+                    </span>
+                  </div>
+                  <ul className="space-y-1.5">
+                    {items.map((dump) => (
+                      <ManageDumpRow
+                        key={dump.id}
+                        dump={dump}
+                        onDelete={onDelete}
+                      />
+                    ))}
+                  </ul>
+                </div>
               ))}
-            </ul>
+            </div>
           )}
         </div>
       </DialogContent>
@@ -1682,15 +1759,15 @@ export function HomeFlow() {
         </div>
       ) : null}
       {isSignedIn && activeWorldId && !isLoadingWorlds ? (
-        <div className="pointer-events-none absolute inset-x-0 top-[calc(env(safe-area-inset-top)+0.75rem)] z-10 flex justify-center px-20 md:top-4">
+        <div className="pointer-events-none absolute inset-x-0 top-[calc(env(safe-area-inset-top)+0.75rem)] z-10 flex justify-center px-4 md:px-8 md:top-4">
           <button
             type="button"
             onClick={() => setIsManageOpen(true)}
-            className="pointer-events-auto flex w-full max-w-xs items-center gap-2 rounded-full border border-border/70 bg-card/80 px-3.5 py-2 text-sm text-muted-foreground shadow-sm backdrop-blur-xl transition hover:bg-card hover:text-foreground"
+            className="pointer-events-auto flex w-full max-w-lg items-center gap-2.5 rounded-full border border-border/70 bg-card/80 px-4 py-2.5 text-sm font-medium text-muted-foreground shadow-sm backdrop-blur-xl transition hover:bg-card hover:text-foreground"
           >
-            <Search className="size-4 shrink-0" />
+            <Search className="size-4.5 shrink-0" />
             <span className="flex-1 text-left">Search & manage dumps…</span>
-            <Layers className="size-4 shrink-0 opacity-70" />
+            <Layers className="size-4.5 shrink-0 opacity-70" />
           </button>
         </div>
       ) : null}

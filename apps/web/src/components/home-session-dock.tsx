@@ -238,10 +238,10 @@ export function HomeSessionDock() {
             <span className="text-xs text-muted-foreground">Loading session</span>
           </div>
         ) : session ? (
-          <div className="pointer-events-auto flex w-full max-w-xl flex-col items-center gap-2">
+          <div className="pointer-events-auto flex w-full max-w-2xl flex-col items-center gap-2">
             {latestAssistantText || isLoading ? (
               <div
-                className="max-h-56 w-full max-w-[27rem] overflow-y-auto rounded-[1.75rem] border px-4 py-3 text-xs shadow-sm backdrop-blur-xl"
+                className="max-h-56 w-full max-w-[34rem] overflow-y-auto rounded-[1.75rem] border px-4 py-3 text-sm shadow-sm backdrop-blur-xl"
                 style={translucentSurfaceStyle}
               >
                 {latestAssistantText ? (
@@ -283,7 +283,7 @@ export function HomeSessionDock() {
             ) : null}
             <form
               onSubmit={handleSubmit}
-              className="flex w-full max-w-[27rem] items-center gap-1 rounded-[1.75rem] border px-2 py-2 shadow-sm backdrop-blur-xl md:rounded-full md:px-1.5 md:py-1"
+              className="flex w-full max-w-[34rem] items-center gap-1 rounded-[1.75rem] border px-2 py-2 shadow-sm backdrop-blur-xl"
               style={translucentSurfaceStyle}
             >
               <Input
@@ -293,12 +293,12 @@ export function HomeSessionDock() {
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 disabled={isLoading}
-                className="h-10 rounded-full border-0 bg-transparent px-3 text-sm shadow-none focus-visible:ring-0 md:h-7 md:px-2 md:text-xs"
+                className="h-10 rounded-full border-0 bg-transparent px-3 text-sm shadow-none focus-visible:ring-0"
               />
               <Button
                 type="submit"
                 size="icon-sm"
-                className="size-10 cursor-pointer rounded-full md:size-7"
+                className="size-10 cursor-pointer rounded-full"
                 disabled={!trimmedInput || isLoading}
               >
                 <PaperAirplaneIcon />
