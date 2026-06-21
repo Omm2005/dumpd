@@ -14,7 +14,7 @@ type Props = {
 };
 
 type BackendDumpRequest = {
-	type: "note" | "image" | "link" | "music" | "video" | "pdf";
+	type: "note" | "image" | "link" | "music" | "video" | "pdf" | "instagram" | "reel";
 	email: string;
 	world?: string;
 	title?: string;
@@ -25,6 +25,8 @@ type BackendDumpRequest = {
 	notes?: string;
 	artist?: string;
 	album?: string;
+	caption?: string;
+	username?: string;
 	coverUrl?: string;
 	previewUrl?: string;
 	lyrics?: string;
@@ -475,6 +477,58 @@ export class MyMCP extends McpAgent<Env, Record<string, never>, Props> {
 					world,
 					reaction,
 				} satisfies BackendDumpRequest),
+		);
+
+		this.server.tool(
+			"save_instagram",
+			"Save an Instagram post or Reel to dumpd. Instagram blocks iframes so the item is saved as a branded link card. The MCP client must extract the caption and a thumbnail URL; dumpd does not scrape Instagram directly.",
+			{
+				url: publicUrlSchema.describe("The instagram.com post or reel URL."),
+				text: z
+					.string()
+					.trim()
+					.min(1)
+					.max(50_000)
+					.describe("Full caption and any other text extracted from the post by the MCP client."),
+				imageUrl: publicUrlSchema
+					.optional()
+					.describe("Publicly reachable thumbnail or cover image URL for the post or reel."),
+				caption: z
+					.string()
+					.trim()
+					.max(5_000)
+					.optional()
+					.describe("The post caption text."),
+				username: z
+					.string()
+					.trim()
+					.max(100)
+					.optional()
+					.describe("The Instagram account username (without @)."),
+				title: titleSchema,
+				world: worldSchema,
+				reaction: z
+					.string()
+					.trim()
+					.max(500)
+					.optional()
+					.describe("Optional first-person note about why you saved this."),
+			},
+			async ({ url, text, imageUrl, caption, username, title, world, reaction }) => {
+				const isReel = url.includes("/reel/");
+				return postToBackend(this.env, "/api/mcp/dumps", {
+					type: isReel ? "reel" : "instagram",
+					email: this.props!.email,
+					url,
+					text,
+					imageUrl,
+					caption,
+					username,
+					title,
+					world,
+					reaction,
+				} satisfies BackendDumpRequest);
+			},
 		);
 
 			this.server.tool(

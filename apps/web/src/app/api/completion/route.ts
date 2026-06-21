@@ -33,26 +33,6 @@ function latestUserText(messages: ChatMessage[]) {
   );
 }
 
-function recentConversation(messages: ChatMessage[]) {
-  return messages
-    .slice(-6, -1)
-    .map((message) => {
-      const text = message.parts
-        .filter(
-          (part): part is Extract<
-            (typeof message.parts)[number],
-            { type: "text" }
-          > => part.type === "text",
-        )
-        .map((part) => part.text)
-        .join("\n")
-        .trim();
-      return text ? `${message.role === "user" ? "User" : "Assistant"}: ${text}` : "";
-    })
-    .filter(Boolean)
-    .join("\n");
-}
-
 export async function POST(request: Request) {
   if (
     !env.ANTHROPIC_API_KEY &&
@@ -91,7 +71,6 @@ export async function POST(request: Request) {
 
   const result = await retrieve(query, session.user.id, {
     worldId: parsed.data.worldId,
-    conversationContext: recentConversation(parsed.data.messages),
   });
   const stream = createUIMessageStream<ChatMessage>({
     execute: ({ writer }) => {

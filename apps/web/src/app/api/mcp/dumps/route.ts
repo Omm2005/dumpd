@@ -77,6 +77,22 @@ const requestSchema = z.discriminatedUnion("type", [
     url: publicUrlSchema,
     text: z.string().trim().min(1).max(50_000),
   }),
+  commonSchema.extend({
+    type: z.literal("instagram"),
+    url: publicUrlSchema,
+    imageUrl: publicUrlSchema.optional(),
+    caption: z.string().trim().max(5_000).optional(),
+    username: z.string().trim().max(100).optional(),
+    text: z.string().trim().min(1).max(50_000),
+  }),
+  commonSchema.extend({
+    type: z.literal("reel"),
+    url: publicUrlSchema,
+    imageUrl: publicUrlSchema.optional(),
+    caption: z.string().trim().max(5_000).optional(),
+    username: z.string().trim().max(100).optional(),
+    text: z.string().trim().min(1).max(50_000),
+  }),
 ]);
 
 const allowedImageTypes = new Set([
@@ -294,7 +310,7 @@ export async function POST(request: Request) {
   const index = dumpCount?.value ?? 0;
 
   let normalized: {
-    type: "note" | "photo" | "article" | "music" | "video" | "document";
+    type: "note" | "photo" | "article" | "music" | "video" | "document" | "instagram" | "reel";
     title: string;
     content: Record<string, unknown>;
     plainText: string;
@@ -471,6 +487,48 @@ export async function POST(request: Request) {
           source: "mcp",
         },
         plainText: parsed.data.text,
+      };
+    } else if (parsed.data.type === "instagram" || parsed.data.type === "reel") {
+      let storedPreview:
+        | { storagePath: string; publicUrl: string; mimeType: string }
+        | undefined;
+
+      if (parsed.data.imageUrl) {
+        try {
+          const id = randomUUID();
+          const { bytes, contentType } = await downloadImage(parsed.data.imageUrl);
+          const extension = extensionForMimeType(contentType);
+          const storagePath = `${matchedUser.id}/${world.id}/${id}.${extension}`;
+          const file = new File([bytes], `${id}.${extension}`, { type: contentType });
+          const uploaded = await uploadPhoto(storagePath, file);
+          uploadedStoragePath = uploaded.storagePath;
+          storedPreview = { ...uploaded, mimeType: contentType };
+        } catch {
+          // Keep the source image URL if copying fails.
+        }
+      }
+
+      const username = parsed.data.username;
+      const isReel = parsed.data.type === "reel";
+      const fallbackTitle = username
+        ? `${username}'s ${isReel ? "Reel" : "Instagram post"}`
+        : isReel ? "Instagram Reel" : "Instagram post";
+
+      normalized = {
+        type: parsed.data.type,
+        title: parsed.data.title ?? deriveTitle(parsed.data.caption ?? parsed.data.text, fallbackTitle),
+        content: {
+          type: parsed.data.type,
+          url: parsed.data.url,
+          imageUrl: storedPreview?.publicUrl ?? parsed.data.imageUrl,
+          storagePath: storedPreview?.storagePath,
+          sourceImageUrl: parsed.data.imageUrl,
+          caption: parsed.data.caption,
+          username: parsed.data.username,
+          text: parsed.data.text,
+          source: "mcp",
+        },
+        plainText: [parsed.data.caption, parsed.data.text].filter(Boolean).join("\n\n"),
       };
     } else {
       normalized = {

@@ -31,7 +31,6 @@ export type RetrieveOptions = {
   dateFrom?: Date;
   dateTo?: Date;
   worldId?: string;
-  conversationContext?: string;
 };
 
 export type Source = {
@@ -522,7 +521,7 @@ export async function retrieve(
     try {
       answer = await generateAnswer(
         ANSWER_SYSTEM_PROMPT,
-        `${options.conversationContext ? `Recent conversation:\n${options.conversationContext}\n\n` : ""}Current query and retrieved context:\n${answerContext(normalizedQuery, finalChunks)}`,
+        answerContext(normalizedQuery, finalChunks),
       );
     } catch (error) {
       console.warn("Answer generation failed.", error);
