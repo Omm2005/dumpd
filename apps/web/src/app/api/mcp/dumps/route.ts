@@ -525,8 +525,15 @@ export async function POST(request: Request) {
     if (!created) throw new Error("Could not create dump.");
 
     try {
-      const sourceType =
-        parsed.data.type === "music" ? "audio" : parsed.data.type;
+      const sourceType = (
+        parsed.data.type === "music"
+          ? "audio"
+          : parsed.data.type === "reel"
+            ? "video"
+            : parsed.data.type === "instagram"
+              ? "image"
+              : parsed.data.type
+      ) as "pdf" | "note" | "image" | "video" | "audio" | "link";
       const contentUrl =
         typeof normalized.content.url === "string"
           ? normalized.content.url
