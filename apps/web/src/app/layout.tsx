@@ -1,12 +1,24 @@
 import type { Metadata, Viewport } from "next";
-import { Space_Grotesk, Public_Sans } from "next/font/google";
+import { Playfair_Display, Public_Sans } from "next/font/google";
 
 import "../index.css";
 import Providers from "@/components/providers";
 import { cn } from "@dumpd/ui/lib/utils";
 import { PwaRegister } from "@/components/pwa-register";
 
-const spaceGroteskHeading = Space_Grotesk({subsets:['latin'],variable:'--font-heading'});
+const playfairHeading = Playfair_Display({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  style: ['normal', 'italic'],
+  variable: '--font-heading',
+});
+
+const playfairSerif = Playfair_Display({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  style: ['normal', 'italic'],
+  variable: '--font-serif',
+});
 
 const publicSans = Public_Sans({subsets:['latin'],variable:'--font-sans'});
 
@@ -27,8 +39,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fffaf5" },
-    { media: "(prefers-color-scheme: dark)", color: "#25201b" },
+    { media: "(prefers-color-scheme: light)", color: "#f5f5f9" },
+    { media: "(prefers-color-scheme: dark)", color: "#131318" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -41,7 +53,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={cn("font-sans", publicSans.variable, spaceGroteskHeading.variable)}>
+    <html lang="en" suppressHydrationWarning className={cn("font-sans", publicSans.variable, playfairHeading.variable, playfairSerif.variable)}>
       <body className={`antialiased`}>
         <Providers>
           <PwaRegister />
