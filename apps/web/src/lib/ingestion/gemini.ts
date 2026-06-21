@@ -119,6 +119,15 @@ export async function embedQuery(text: string) {
 }
 
 export async function generateJson(prompt: string) {
+  if (env.ANTHROPIC_API_KEY) {
+    const { text } = await generateText({
+      model: anthropic("claude-haiku-4-5-20251001"),
+      prompt,
+    });
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    if (jsonMatch) return JSON.parse(jsonMatch[0]) as unknown;
+  }
+
   const model = getClient().getGenerativeModel({
     model: "gemini-2.5-flash",
     generationConfig: {
@@ -159,6 +168,22 @@ export async function generateAnswer(systemInstruction: string, prompt: string) 
 export async function extractEntitiesAndRelations(
   text: string,
 ): Promise<EntityExtraction> {
+  if (env.ANTHROPIC_API_KEY) {
+    const { text: responseText } = await generateText({
+      model: anthropic("claude-sonnet-4-6"),
+      system: ENTITY_SYSTEM_INSTRUCTION,
+      prompt: text,
+    });
+    try {
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (jsonMatch) return extractionSchema.parse(JSON.parse(jsonMatch[0]));
+    } catch (error) {
+      throw new Error("Claude returned invalid entity extraction JSON.", {
+        cause: error,
+      });
+    }
+  }
+
   const model = getClient().getGenerativeModel({
     model: "gemini-2.5-flash",
     systemInstruction: ENTITY_SYSTEM_INSTRUCTION,

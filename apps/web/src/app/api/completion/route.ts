@@ -9,6 +9,12 @@ import { z } from "zod";
 
 import { retrieve } from "@/lib/retrieval";
 import type { ChatMessage } from "@/lib/chat-sources";
+import {
+  appendToWorkingMemory,
+  getLongTermMemory,
+  getWorkingMemory,
+  updateLongTermMemory,
+} from "@/lib/ai-memory";
 
 export const maxDuration = 30;
 
@@ -69,9 +75,22 @@ export async function POST(request: Request) {
     return new Response("A user query is required.", { status: 400 });
   }
 
-  const result = await retrieve(query, session.user.id, {
+  const userId = session.user.id;
+  const sessionId = `${userId}:${new Date().toISOString().slice(0, 10)}`;
+
+  const [workingMemory, longTermMemory] = await Promise.all([
+    getWorkingMemory(userId, sessionId),
+    getLongTermMemory(userId),
+  ]);
+
+  const result = await retrieve(query, userId, {
     worldId: parsed.data.worldId,
+    workingMemory: workingMemory || undefined,
+    longTermMemory: longTermMemory || undefined,
   });
+
+  void appendToWorkingMemory(userId, sessionId, query, result.answer);
+  void updateLongTermMemory(userId, query, result.answer);
   const stream = createUIMessageStream<ChatMessage>({
     execute: ({ writer }) => {
       const id = crypto.randomUUID();

@@ -24,6 +24,7 @@
     "babel-plugin-react-compiler": "^1.0.0",
     "better-auth": "catalog:",
     "dotenv": "catalog:",
+    "ioredis": "^5.11.1",
     "lucide-react": "catalog:",
     "motion": "^12.40.0",
     "next": "^16.2.0",

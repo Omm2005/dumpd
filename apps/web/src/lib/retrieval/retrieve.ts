@@ -21,6 +21,7 @@ import {
   generateJson,
 } from "@/lib/ingestion/gemini";
 import { queryVectors } from "@/lib/supabase-vectors";
+import { checkLlmCache, setLlmCache } from "@/lib/ai-memory";
 
 import { reciprocalRankFusion } from "./rrf";
 
@@ -31,6 +32,8 @@ export type RetrieveOptions = {
   dateFrom?: Date;
   dateTo?: Date;
   worldId?: string;
+  workingMemory?: string;
+  longTermMemory?: string;
 };
 
 export type Source = {
@@ -417,7 +420,7 @@ Return ONLY a JSON object: { "score": number }`,
   return ranked.sort((a, b) => b.rerankScore - a.rerankScore);
 }
 
-function answerContext(query: string, chunks: Chunk[]) {
+function answerContext(query: string, chunks: Chunk[], workingMemory?: string) {
   const context = chunks
     .map(
       (chunk, index) => `${index + 1}. ${chunk.title} (${chunk.modality})
@@ -427,7 +430,10 @@ ${chunk.notes ? `Notes: ${chunk.notes}` : ""}
 ---`,
     )
     .join("\n");
-  return `${query}\n\n${context}`;
+  const memoryPrefix = workingMemory
+    ? `Recent conversation:\n${workingMemory}\n\n`
+    : "";
+  return `${memoryPrefix}${query}\n\n${context}`;
 }
 
 export async function retrieve(
@@ -440,8 +446,14 @@ export async function retrieve(
   if (!normalizedQuery || !userId) return empty;
 
   try {
+    const cached = await checkLlmCache(userId, normalizedQuery);
+    if (cached) return cached as RetrievalResult;
+
     const inventory = await inventorySearch(normalizedQuery, userId, options);
-    if (inventory) return inventory;
+    if (inventory) {
+      void setLlmCache(userId, normalizedQuery, inventory);
+      return inventory;
+    }
 
     let queryVector: number[];
     try {
@@ -519,9 +531,12 @@ export async function retrieve(
 
     let answer = "Could not generate answer";
     try {
+      const systemPrompt = options.longTermMemory
+        ? `${ANSWER_SYSTEM_PROMPT}\n\nWhat you know about this user: ${options.longTermMemory}`
+        : ANSWER_SYSTEM_PROMPT;
       answer = await generateAnswer(
-        ANSWER_SYSTEM_PROMPT,
-        answerContext(normalizedQuery, finalChunks),
+        systemPrompt,
+        answerContext(normalizedQuery, finalChunks, options.workingMemory),
       );
     } catch (error) {
       console.warn("Answer generation failed.", error);
@@ -545,7 +560,9 @@ export async function retrieve(
         ]),
       ).values(),
     ];
-    return { answer, sources: resultSources, chunks: finalChunks };
+    const result: RetrievalResult = { answer, sources: resultSources, chunks: finalChunks };
+    void setLlmCache(userId, normalizedQuery, result);
+    return result;
   } catch (error) {
     console.error("Retrieval pipeline failed.", error);
     return empty;
