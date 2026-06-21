@@ -51,6 +51,7 @@
         "babel-plugin-react-compiler": "^1.0.0",
         "better-auth": "catalog:",
         "dotenv": "catalog:",
+        "drizzle-orm": "^0.45.1",
         "ioredis": "^5.11.1",
         "lucide-react": "catalog:",
         "motion": "^12.40.0",

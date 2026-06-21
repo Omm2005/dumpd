@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto";
 
-import { anthropic } from "@ai-sdk/anthropic";
-import { generateText } from "ai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { generateText, Output } from "ai";
+import { z } from "zod";
 
 import { env } from "@dumpd/env/server";
 
@@ -71,33 +72,51 @@ export async function getLongTermMemory(userId: string): Promise<string | null> 
   }
 }
 
+const CACHE_TTL = 1800;
+const MEMORY_MODEL = "gemini-2.5-flash";
+
+const memoryInsightSchema = z.object({
+  taste: z.string().optional(),
+  topics: z.string().optional(),
+  style: z.string().optional(),
+});
+
+let google: ReturnType<typeof createGoogleGenerativeAI> | undefined;
+
+function getGoogle() {
+  const apiKey = env.GEMINI_API_KEY ?? env.GOOGLE_GENERATIVE_AI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured.");
+  }
+  google ??= createGoogleGenerativeAI({ apiKey });
+  return google;
+}
+
 export async function updateLongTermMemory(
   userId: string,
   query: string,
   answer: string,
 ): Promise<void> {
   try {
-    if (!env.ANTHROPIC_API_KEY) return;
+    if (!env.GEMINI_API_KEY && !env.GOOGLE_GENERATIVE_AI_API_KEY) return;
     const redis = getRedis();
     if (!redis) return;
 
-    const { text } = await generateText({
-      model: anthropic("claude-haiku-4-5-20251001"),
+    const { output } = await generateText({
+      model: getGoogle()(MEMORY_MODEL),
       prompt: `From this Q&A, extract 1-2 short insights about the user's taste, interests, or preferred response style.
-Return ONLY valid JSON with optional fields: taste, topics, style. Values must be under 20 words each.
-If nothing can be inferred, return {}.
+Return ONLY a JSON object with optional fields: taste, topics, style. Values must be under 20 words each.
+If nothing can be inferred, return an empty object.
 
 Q: ${query}
 A: ${answer}`,
+      output: Output.object({ schema: memoryInsightSchema }),
     });
 
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) return;
-    const insight = JSON.parse(jsonMatch[0]) as Record<string, string>;
-    if (typeof insight !== "object" || Object.keys(insight).length === 0) return;
+    if (Object.keys(output).length === 0) return;
 
     await redis.hset(`long_term_memory:${userId}`, {
-      ...insight,
+      ...output,
       last_updated: new Date().toISOString(),
     });
   } catch {
@@ -106,8 +125,6 @@ A: ${answer}`,
 }
 
 // ─── LLM Response Cache (30min TTL) ──────────────────────────────────────────
-
-const CACHE_TTL = 1800;
 
 function cacheKey(userId: string, query: string): string {
   const hash = createHash("sha256")
