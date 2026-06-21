@@ -30,7 +30,6 @@ import {
   FileText,
   Image as ImageIcon,
   Instagram,
-  Layers,
   Link2,
   Loader2,
   MoreHorizontal,
@@ -45,7 +44,10 @@ import remarkGfm from "remark-gfm";
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth-client";
-import { SOURCE_FOCUS_EVENT } from "@/lib/chat-sources";
+import {
+  MANAGE_DUMPS_EVENT,
+  SOURCE_FOCUS_EVENT,
+} from "@/lib/chat-sources";
 import { tiptapToMarkdown } from "@/lib/tiptap-to-markdown";
 import {
   WorldSwitcher,
@@ -458,7 +460,7 @@ function WorldNode({ data }: NodeProps) {
   }
 
   return (
-    <div className="group relative h-52 w-[18.5rem] cursor-pointer select-none">
+    <div className="world-node group relative h-52 w-[18.5rem] cursor-pointer select-none">
       <svg
         aria-hidden="true"
         className="absolute inset-x-2 bottom-1 top-0 z-0 h-[12.75rem] w-[17.5rem] overflow-visible drop-shadow-[0_12px_15px_rgba(0,0,0,0.08)]"
@@ -1299,6 +1301,15 @@ export function HomeFlow() {
   }, [activeWorldId, flowInstance]);
 
   useEffect(() => {
+    function openManageDumps() {
+      setIsManageOpen(true);
+    }
+
+    window.addEventListener(MANAGE_DUMPS_EVENT, openManageDumps);
+    return () => window.removeEventListener(MANAGE_DUMPS_EVENT, openManageDumps);
+  }, []);
+
+  useEffect(() => {
     if (
       focusedSourceId &&
       flowInstance &&
@@ -1718,7 +1729,7 @@ export function HomeFlow() {
             strokeWidth: 1.5,
           },
         }}
-        className="bg-background"
+        className="enchanted-flow"
         proOptions={{ hideAttribution: true }}
       >
         <MiniMap
@@ -1756,19 +1767,6 @@ export function HomeFlow() {
             onCreated={handleWorldCreated}
             onDeleted={handleWorldDeleted}
           />
-        </div>
-      ) : null}
-      {isSignedIn && activeWorldId && !isLoadingWorlds ? (
-        <div className="pointer-events-none absolute inset-x-0 top-[calc(env(safe-area-inset-top)+0.75rem)] z-10 flex justify-center px-4 md:px-8 md:top-4">
-          <button
-            type="button"
-            onClick={() => setIsManageOpen(true)}
-            className="pointer-events-auto flex w-full max-w-lg items-center gap-2.5 rounded-full border border-border/70 bg-card/80 px-4 py-2.5 text-sm font-medium text-muted-foreground shadow-sm backdrop-blur-xl transition hover:bg-card hover:text-foreground"
-          >
-            <Search className="size-4.5 shrink-0" />
-            <span className="flex-1 text-left">Search & manage dumps…</span>
-            <Layers className="size-4.5 shrink-0 opacity-70" />
-          </button>
         </div>
       ) : null}
       {activeWorldId &&

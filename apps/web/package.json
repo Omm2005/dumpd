@@ -8,6 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "^3.0.85",
     "@ai-sdk/google": "^3.0.80",
     "@ai-sdk/react": "^3.0.197",
     "@dumpd/auth": "workspace:*",

@@ -33,9 +33,34 @@ function latestUserText(messages: ChatMessage[]) {
   );
 }
 
+function recentConversation(messages: ChatMessage[]) {
+  return messages
+    .slice(-6, -1)
+    .map((message) => {
+      const text = message.parts
+        .filter(
+          (part): part is Extract<
+            (typeof message.parts)[number],
+            { type: "text" }
+          > => part.type === "text",
+        )
+        .map((part) => part.text)
+        .join("\n")
+        .trim();
+      return text ? `${message.role === "user" ? "User" : "Assistant"}: ${text}` : "";
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
 export async function POST(request: Request) {
-  if (!env.GEMINI_API_KEY && !env.GOOGLE_GENERATIVE_AI_API_KEY) {
-    return new Response("Missing GEMINI_API_KEY.", {
+  if (
+    !env.ANTHROPIC_API_KEY &&
+    !env.AI_GATEWAY_API_KEY &&
+    !env.GEMINI_API_KEY &&
+    !env.GOOGLE_GENERATIVE_AI_API_KEY
+  ) {
+    return new Response("No language model API key is configured.", {
       status: 500,
     });
   }
@@ -64,7 +89,10 @@ export async function POST(request: Request) {
     return new Response("A user query is required.", { status: 400 });
   }
 
-  const result = await retrieve(query, session.user.id);
+  const result = await retrieve(query, session.user.id, {
+    worldId: parsed.data.worldId,
+    conversationContext: recentConversation(parsed.data.messages),
+  });
   const stream = createUIMessageStream<ChatMessage>({
     execute: ({ writer }) => {
       const id = crypto.randomUUID();

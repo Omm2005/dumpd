@@ -63,7 +63,7 @@ export const ThemeSwitcher = ({
   return (
     <div
       className={cn(
-        "relative isolate flex h-7 rounded-full bg-background p-0.5 ring-1 ring-border",
+        "relative isolate flex h-10 rounded-full bg-background p-1 ring-1 ring-border",
         className,
       )}
     >
@@ -73,7 +73,7 @@ export const ThemeSwitcher = ({
         return (
           <button
             aria-label={label}
-            className="relative flex size-6 cursor-pointer items-center justify-center rounded-full"
+            className="relative flex size-8 cursor-pointer items-center justify-center rounded-full"
             key={key}
             onClick={() => handleThemeClick(key)}
             type="button"
@@ -87,7 +87,7 @@ export const ThemeSwitcher = ({
             ) : null}
             <Icon
               className={cn(
-                "relative z-10 size-3.5",
+                "relative z-10 size-5",
                 isActive ? "text-foreground" : "text-muted-foreground",
               )}
             />

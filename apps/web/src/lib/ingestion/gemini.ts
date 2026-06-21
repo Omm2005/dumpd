@@ -3,6 +3,8 @@ import {
   TaskType,
   type Content,
 } from "@google/generative-ai";
+import { anthropic } from "@ai-sdk/anthropic";
+import { generateText } from "ai";
 import { z } from "zod";
 
 import { env } from "@dumpd/env/server";
@@ -128,6 +130,24 @@ export async function generateJson(prompt: string) {
 }
 
 export async function generateAnswer(systemInstruction: string, prompt: string) {
+  if (env.ANTHROPIC_API_KEY) {
+    const { text } = await generateText({
+      model: anthropic("claude-sonnet-4-6"),
+      system: systemInstruction,
+      prompt,
+    });
+    return text;
+  }
+
+  if (env.AI_GATEWAY_API_KEY) {
+    const { text } = await generateText({
+      model: "anthropic/claude-sonnet-4.6",
+      system: systemInstruction,
+      prompt,
+    });
+    return text;
+  }
+
   const model = getClient().getGenerativeModel({
     model: "gemini-2.5-flash",
     systemInstruction,
