@@ -1,0 +1,2 @@
+CREATE INDEX "embeddings_user_modality_created_idx" ON "embeddings" USING btree ("user_id","modality","created_at");--> statement-breakpoint
+CREATE INDEX "embeddings_content_fts_idx" ON "embeddings" USING gin (to_tsvector('english', "content"));

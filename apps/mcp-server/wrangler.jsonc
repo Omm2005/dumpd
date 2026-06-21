@@ -1,0 +1,57 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "dumpd-mcp",
+	"main": "src/index.ts",
+	"compatibility_date": "2025-03-10",
+	"compatibility_flags": [
+		"nodejs_compat",
+		"global_fetch_strictly_public"
+	],
+	/**
+	 * Note: Use secrets to store sensitive data.
+	 * https://developers.cloudflare.com/workers/configuration/secrets/
+	 * 
+	 * Commands to set secrets:
+	 * npx wrangler secret put GOOGLE_CLIENT_ID
+	 * npx wrangler secret put GOOGLE_CLIENT_SECRET
+	 * npx wrangler secret put DUMPD_API_URL
+	 * npx wrangler secret put MCP_INGEST_SECRET
+	 * npx wrangler secret put COOKIE_ENCRYPTION_KEY
+	 */
+	"migrations": [
+		{
+			"new_sqlite_classes": [
+				"MyMCP"
+			],
+			"tag": "v1"
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"class_name": "MyMCP",
+				"name": "MCP_OBJECT"
+			}
+		]
+	},
+	"kv_namespaces": [
+		{
+			"binding": "MCP_OAUTH_KV",
+			"id": "474a09f61dc445b5b98945815293db09",
+			"remote": true
+		}
+	],
+	"ai": {
+		"binding": "AI"
+	},
+	"observability": {
+		"enabled": true
+	},
+	"dev": {
+		"port": 8788
+	}
+}

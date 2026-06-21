@@ -1,0 +1,49 @@
+{
+  "name": "dumpd",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "apps/*",
+      "packages/*"
+    ],
+    "catalog": {
+      "dotenv": "^17.2.2",
+      "zod": "^4.1.13",
+      "typescript": "^6",
+      "lucide-react": "^0.546.0",
+      "next-themes": "^0.4.6",
+      "react": "^19.2.6",
+      "react-dom": "^19.2.6",
+      "sonner": "^2.0.5",
+      "better-auth": "1.6.11",
+      "@types/react": "^19.2.15",
+      "@types/react-dom": "^19.2.3",
+      "tailwindcss": "^4.1.18"
+    }
+  },
+  "type": "module",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "check-types": "turbo check-types",
+    "dev:web": "turbo -F web dev",
+    "db:push": "turbo -F @dumpd/db db:push",
+    "db:studio": "turbo -F @dumpd/db db:studio",
+    "db:generate": "turbo -F @dumpd/db db:generate",
+    "db:migrate": "turbo -F @dumpd/db db:migrate"
+  },
+  "dependencies": {
+    "@dumpd/env": "workspace:*",
+    "clsx": "^2.1.1",
+    "dotenv": "catalog:",
+    "tailwind-merge": "^3.6.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@dumpd/config": "workspace:*",
+    "@types/node": "^22.13.14",
+    "turbo": "^2.8.12",
+    "typescript": "catalog:"
+  },
+  "packageManager": "bun@1.2.17"
+}

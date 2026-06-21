@@ -1,0 +1,5 @@
+GOOGLE_CLIENT_ID=<your Google client id>
+GOOGLE_CLIENT_SECRET=<your Google client secret>
+COOKIE_ENCRYPTION_KEY=<your cookie encryption key>
+DUMPD_API_URL=http://localhost:3000
+MCP_INGEST_SECRET=<same 32+ character secret configured in apps/web>

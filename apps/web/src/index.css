@@ -1,0 +1,167 @@
+@import "@dumpd/ui/globals.css";
+
+:root {
+  --app-safe-top: env(safe-area-inset-top, 0px);
+  --app-safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  overscroll-behavior: none;
+}
+
+.react-flow__node {
+  box-shadow: none !important;
+  transition:
+    opacity 0.2s ease,
+    filter 0.2s ease;
+}
+
+.react-flow:has(.react-flow__node:hover) .react-flow__node:not(:hover) {
+  filter: blur(2.5px);
+}
+
+.react-flow__node.source-focus-muted {
+  opacity: 0.22;
+  filter: blur(3px);
+  pointer-events: none;
+}
+
+.react-flow__node.source-focus-active {
+  z-index: 10 !important;
+  opacity: 1;
+  filter: none;
+}
+
+.react-flow__minimap-node {
+  transition: opacity 0.2s ease;
+}
+
+.react-flow__minimap-node.minimap-node-muted {
+  opacity: 0.15;
+}
+
+.react-flow__node:focus,
+.react-flow__node:focus-visible,
+.react-flow__node.selected {
+  outline: none !important;
+  box-shadow: none !important;
+}
+
+.dump-node {
+  position: relative;
+  background: var(--card);
+  border-color: var(--border);
+  box-shadow: none !important;
+  outline: none;
+}
+
+.react-flow__node.selected .dump-node,
+.react-flow__node:focus .dump-node,
+.react-flow__node:focus-visible .dump-node {
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.dump-node-fade {
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    #000 0,
+    #000 62%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(to bottom, #000 0, #000 62%, transparent 100%);
+}
+
+.note-prose > :first-child {
+  margin-top: 0;
+}
+
+.note-prose h1,
+.note-prose h2,
+.note-prose h3,
+.note-prose h4 {
+  margin: 1rem 0 0.35rem;
+  font-family: var(--font-serif, ui-serif, Georgia, serif);
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--foreground);
+}
+
+.note-prose h1 {
+  font-size: 1.125rem;
+}
+
+.note-prose h2 {
+  font-size: 1.0625rem;
+}
+
+.note-prose h3,
+.note-prose h4 {
+  font-size: 1rem;
+}
+
+.note-prose p {
+  margin: 0.5rem 0;
+}
+
+.note-prose ul,
+.note-prose ol {
+  margin: 0.5rem 0;
+  padding-left: 1.25rem;
+}
+
+.note-prose ul {
+  list-style: disc;
+}
+
+.note-prose ol {
+  list-style: decimal;
+}
+
+.note-prose li {
+  margin: 0.125rem 0;
+}
+
+.note-prose blockquote {
+  margin: 0.5rem 0;
+  border-left: 3px solid var(--border);
+  padding-left: 0.75rem;
+}
+
+.note-prose code {
+  border-radius: 0.375rem;
+  background: var(--muted);
+  padding: 0.075rem 0.25rem;
+  font-size: 0.85em;
+}
+
+.note-prose pre {
+  margin: 0.5rem 0;
+  overflow-x: auto;
+  border-radius: 0.625rem;
+  background: var(--muted);
+  padding: 0.625rem 0.75rem;
+  font-size: 0.8125rem;
+}
+
+.note-prose pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.note-prose strong {
+  color: var(--foreground);
+  font-weight: 600;
+}
+
+@media (max-width: 767px) {
+  .react-flow__attribution,
+  .react-flow__minimap {
+    display: none;
+  }
+}

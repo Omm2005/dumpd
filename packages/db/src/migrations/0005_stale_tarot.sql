@@ -1,0 +1,1 @@
+ALTER TABLE "worlds" ADD COLUMN "color" text DEFAULT 'amber' NOT NULL;
