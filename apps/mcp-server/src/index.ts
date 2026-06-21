@@ -581,7 +581,7 @@ const oauthProvider = new OAuthProvider({
 });
 
 const temporaryMcpAliases = new Set([
-	"/28f5ef53-91f5-482f-90d2-b1c72487576a/mcp",
+	"/21135a82-a490-4384-b281-5387aa353db5/mcp",
 ]);
 
 export default {

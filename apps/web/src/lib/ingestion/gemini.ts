@@ -1,11 +1,15 @@
 import {
-  GoogleGenerativeAI,
-  TaskType,
-  type Content,
-} from "@google/generative-ai";
+  createGoogleGenerativeAI,
+  type GoogleEmbeddingModelOptions,
+} from "@ai-sdk/google";
+import { embed, embedMany, generateText, Output } from "ai";
 import { z } from "zod";
 
 import { env } from "@dumpd/env/server";
+
+const GENERATION_MODEL = "gemini-2.5-flash";
+const EMBEDDING_MODEL = "gemini-embedding-001";
+const EMBEDDING_DIMENSIONS = 768;
 
 const ENTITY_SYSTEM_INSTRUCTION = `You are an entity and relationship extractor. Given text, extract all named entities and relationships between them. Return ONLY valid JSON, no markdown, no explanation. Schema:
 {
@@ -34,22 +38,15 @@ const extractionSchema = z.object({
 
 export type EntityExtraction = z.infer<typeof extractionSchema>;
 
-let client: GoogleGenerativeAI | undefined;
+let google: ReturnType<typeof createGoogleGenerativeAI> | undefined;
 
-function getClient() {
+function getGoogle() {
   const apiKey = env.GEMINI_API_KEY ?? env.GOOGLE_GENERATIVE_AI_API_KEY;
   if (!apiKey) {
     throw new Error("GEMINI_API_KEY is not configured.");
   }
-  client ??= new GoogleGenerativeAI(apiKey);
-  return client;
-}
-
-function asContent(text: string): Content {
-  return {
-    role: "user",
-    parts: [{ text }],
-  };
+  google ??= createGoogleGenerativeAI({ apiKey });
+  return google;
 }
 
 function normalizeEmbedding(values: number[]) {
@@ -59,39 +56,21 @@ function normalizeEmbedding(values: number[]) {
   return magnitude === 0 ? values : values.map((value) => value / magnitude);
 }
 
-async function embedText(text: string, taskType: TaskType) {
-  const apiKey = env.GEMINI_API_KEY ?? env.GOOGLE_GENERATIVE_AI_API_KEY;
-  if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured.");
-  }
-
-  const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${encodeURIComponent(apiKey)}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        content: asContent(text),
-        taskType,
-        outputDimensionality: 768,
-      }),
-    },
-  );
-  const payload = (await response.json()) as {
-    embedding?: { values?: number[] };
-    error?: { message?: string };
+function embeddingOptions(
+  taskType: "RETRIEVAL_DOCUMENT" | "RETRIEVAL_QUERY",
+) {
+  return {
+    google: {
+      taskType,
+      outputDimensionality: EMBEDDING_DIMENSIONS,
+    } satisfies GoogleEmbeddingModelOptions,
   };
-  if (!response.ok) {
-    throw new Error(
-      payload.error?.message ??
-        `Gemini embedding request failed (${response.status}).`,
-    );
-  }
+}
 
-  const values = payload.embedding?.values;
-  if (!values || values.length !== 768) {
+function validateEmbedding(values: number[]) {
+  if (values.length !== EMBEDDING_DIMENSIONS) {
     throw new Error(
-      `Expected a 768-dimensional embedding, received ${values?.length ?? 0}.`,
+      `Expected a ${EMBEDDING_DIMENSIONS}-dimensional embedding, received ${values.length}.`,
     );
   }
 
@@ -103,78 +82,55 @@ export async function embedDocuments(texts: string[]) {
 
   for (let start = 0; start < texts.length; start += 20) {
     const batch = texts.slice(start, start + 20);
-    const embeddings = await Promise.all(
-      batch.map((text) => embedText(text, TaskType.RETRIEVAL_DOCUMENT)),
-    );
-    output.push(...embeddings);
+    const { embeddings } = await embedMany({
+      model: getGoogle().embedding(EMBEDDING_MODEL),
+      values: batch,
+      providerOptions: embeddingOptions("RETRIEVAL_DOCUMENT"),
+    });
+    output.push(...embeddings.map(validateEmbedding));
   }
 
   return output;
 }
 
 export async function embedQuery(text: string) {
-  return embedText(text, TaskType.RETRIEVAL_QUERY);
+  const { embedding } = await embed({
+    model: getGoogle().embedding(EMBEDDING_MODEL),
+    value: text,
+    providerOptions: embeddingOptions("RETRIEVAL_QUERY"),
+  });
+  return validateEmbedding(embedding);
 }
 
 export async function generateJson(prompt: string) {
-  if (env.ANTHROPIC_API_KEY) {
-    const { text } = await generateText({
-      model: anthropic("claude-haiku-4-5-20251001"),
-      prompt,
-    });
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if (jsonMatch) return JSON.parse(jsonMatch[0]) as unknown;
-  }
-
-  const model = getClient().getGenerativeModel({
-    model: "gemini-2.5-flash",
-    generationConfig: {
-      responseMimeType: "application/json",
-    },
+  const { output } = await generateText({
+    model: getGoogle()(GENERATION_MODEL),
+    prompt,
+    output: Output.json(),
   });
-  const response = await model.generateContent(prompt);
-  return JSON.parse(response.response.text()) as unknown;
+  return output;
 }
 
 export async function generateAnswer(systemInstruction: string, prompt: string) {
-  const model = getClient().getGenerativeModel({
-    model: "gemini-2.5-flash",
-    systemInstruction,
+  const { text } = await generateText({
+    model: getGoogle()(GENERATION_MODEL),
+    system: systemInstruction,
+    prompt,
   });
-  const response = await model.generateContent(prompt);
-  return response.response.text();
+  return text;
 }
 
 export async function extractEntitiesAndRelations(
   text: string,
 ): Promise<EntityExtraction> {
-  if (env.ANTHROPIC_API_KEY) {
-    const { text: responseText } = await generateText({
-      model: anthropic("claude-sonnet-4-6"),
+  try {
+    const { output } = await generateText({
+      model: getGoogle()(GENERATION_MODEL),
       system: ENTITY_SYSTEM_INSTRUCTION,
       prompt: text,
+      output: Output.object({ schema: extractionSchema }),
     });
-    try {
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
-      if (jsonMatch) return extractionSchema.parse(JSON.parse(jsonMatch[0]));
-    } catch (error) {
-      throw new Error("Claude returned invalid entity extraction JSON.", {
-        cause: error,
-      });
-    }
-  }
-
-  const model = getClient().getGenerativeModel({
-    model: "gemini-2.5-flash",
-    systemInstruction: ENTITY_SYSTEM_INSTRUCTION,
-    generationConfig: {
-      responseMimeType: "application/json",
-    },
-  });
-  const response = await model.generateContent(text);
-
-  try {
-    return extractionSchema.parse(JSON.parse(response.response.text()));
+    return output;
   } catch (error) {
     throw new Error("Gemini returned invalid entity extraction JSON.", {
       cause: error,

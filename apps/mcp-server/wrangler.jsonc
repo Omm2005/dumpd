@@ -5,6 +5,7 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "dumpd-mcp",
+	"account_id": "ced6728d87fe798df04e78273199dd2b",
 	"main": "src/index.ts",
 	"compatibility_date": "2025-03-10",
 	"compatibility_flags": [
@@ -41,7 +42,7 @@
 	"kv_namespaces": [
 		{
 			"binding": "MCP_OAUTH_KV",
-			"id": "474a09f61dc445b5b98945815293db09",
+			"id": "964aa908e1294deaaabe588700572285",
 			"remote": true
 		}
 	],

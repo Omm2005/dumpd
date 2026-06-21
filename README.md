@@ -35,7 +35,7 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
 SUPABASE_PHOTOS_BUCKET=dumpd-photos
 SUPABASE_VECTOR_BUCKET=vectordb
-SUPABASE_VECTOR_INDEX=gemini-embedding-001
+SUPABASE_VECTOR_INDEX=text-embedding-3-small-768
 ```
 
 The app creates the public photo bucket and the 768-dimensional cosine vector

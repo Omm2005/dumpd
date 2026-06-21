@@ -14,7 +14,6 @@
     "@dumpd/db": "workspace:*",
     "@dumpd/env": "workspace:*",
     "@dumpd/ui": "workspace:*",
-    "@google/generative-ai": "^0.24.1",
     "@heroicons/react": "^2.2.0",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
     "@supabase/supabase-js": "^2.108.2",

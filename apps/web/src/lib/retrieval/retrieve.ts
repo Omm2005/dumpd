@@ -265,13 +265,6 @@ export async function retrieve(
   try {
     const cached = await checkLlmCache(userId, normalizedQuery);
     if (cached) return cached as RetrievalResult;
-
-    const inventory = await inventorySearch(normalizedQuery, userId, options);
-    if (inventory) {
-      void setLlmCache(userId, normalizedQuery, inventory);
-      return inventory;
-    }
-
     let queryVector: number[];
     try {
       queryVector = await embedQuery(normalizedQuery);
