@@ -60,6 +60,12 @@ body {
   outline: none;
 }
 
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 .react-flow__node.selected .dump-node,
 .react-flow__node:focus .dump-node,
 .react-flow__node:focus-visible .dump-node {

@@ -26,17 +26,21 @@ import {
 } from "@dumpd/ui/components/dialog";
 import { Input } from "@dumpd/ui/components/input";
 import {
+  Bell,
   ExternalLink,
   FileText,
   Image as ImageIcon,
   Layers,
+  LayoutGrid,
   Link2,
   Loader2,
   MoreHorizontal,
+  Move,
   Music2,
   Play,
   Search,
   Trash2,
+  X,
 } from "lucide-react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -56,6 +60,30 @@ import "@xyflow/react/dist/style.css";
 
 const initialNodes: Node[] = [];
 const initialEdges: Edge[] = [];
+
+type LayoutMode = "free" | "grid";
+
+const LAYOUT_OPTIONS = [
+  { value: "free", label: "Canvas", icon: Move },
+  { value: "grid", label: "Grid", icon: LayoutGrid },
+] as const;
+
+// Surface a dump the user saved a while ago and hasn't touched, so it doesn't
+// get lost on the canvas. Tracked client-side via localStorage.
+const REMINDER_STALE_MS = 3 * 24 * 60 * 60 * 1000;
+const REMINDER_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000;
+const REMINDED_STORAGE_KEY = "dumpd:reminded";
+
+function readRemindedMap(): Record<string, number> {
+  try {
+    const parsed = JSON.parse(
+      localStorage.getItem(REMINDED_STORAGE_KEY) ?? "{}",
+    );
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
 
 const dumpTypeColors: Record<string, string> = {
   note: "#f59e0b",
@@ -609,7 +637,7 @@ function NoteNode({ data }: NodeProps) {
 
   return (
     <div
-      className="dump-node relative flex h-[26rem] w-80 cursor-pointer flex-col rounded-[1.75rem] border-4 p-5 text-card-foreground transition-transform duration-150 hover:-translate-y-1"
+      className="dump-node relative flex h-[26rem] w-80 cursor-pointer flex-col rounded-2xl border p-5 text-card-foreground transition-transform duration-150 hover:-translate-y-1"
       data-dump-type={dumpType}
     >
       <h2 className="line-clamp-2 font-serif text-2xl font-semibold leading-tight tracking-tight text-foreground">
@@ -644,13 +672,13 @@ function ImageNode({ data }: NodeProps) {
 
   return (
     <article
-      className="dump-node relative w-80 cursor-pointer overflow-hidden rounded-[1.75rem] border-4 border-border bg-card shadow-sm"
+      className="dump-node relative w-80 cursor-pointer overflow-hidden rounded-2xl border border-border bg-card"
       data-dump-type="image"
     >
       {!imageLoaded && !imageFailed ? (
-        <div className="aspect-square w-full animate-pulse bg-muted">
-          <div className="absolute inset-x-5 bottom-5 h-24 rounded-2xl bg-background/25" />
-          <div className="absolute left-7 top-7 size-12 rounded-full bg-background/30" />
+        <div className="grid aspect-square w-full place-items-center overflow-hidden bg-muted/60">
+          <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.4s_infinite] bg-gradient-to-r from-transparent via-foreground/[0.06] to-transparent" />
+          <ImageIcon className="size-7 text-muted-foreground/40" />
         </div>
       ) : null}
       {image.imageUrl && !imageFailed ? (
@@ -682,7 +710,7 @@ function LinkNode({ data }: NodeProps) {
 
   return (
     <article
-      className="dump-node group relative w-80 cursor-grab overflow-hidden rounded-[1.65rem] border-[3px] border-border bg-card text-card-foreground shadow-sm transition-shadow active:cursor-grabbing hover:shadow-md"
+      className="dump-node group relative w-80 cursor-grab overflow-hidden rounded-2xl border border-border bg-card text-card-foreground transition-transform duration-150 active:cursor-grabbing hover:-translate-y-1"
       data-dump-type="link"
     >
       <div className="relative aspect-[16/9] w-full overflow-hidden bg-slate-200 dark:bg-slate-800">
@@ -744,7 +772,7 @@ function PdfNode({ data }: NodeProps) {
 
   return (
     <article
-      className="dump-node relative flex h-72 w-80 cursor-pointer flex-col rounded-[1.75rem] border-4 p-5 text-card-foreground"
+      className="dump-node relative flex h-72 w-80 cursor-pointer flex-col rounded-2xl border p-5 text-card-foreground transition-transform duration-150 hover:-translate-y-1"
       data-dump-type="pdf"
     >
       <div className="flex items-start gap-4">
@@ -785,7 +813,7 @@ function VideoNode({ data }: NodeProps) {
 
   return (
     <article
-      className="dump-node relative w-[23rem] cursor-pointer overflow-hidden rounded-[2rem] border-4 bg-black text-card-foreground"
+      className="dump-node relative w-[23rem] cursor-pointer overflow-hidden rounded-2xl border bg-black text-card-foreground"
       data-dump-type="video"
     >
       <div className="nodrag nopan nowheel relative aspect-video overflow-hidden bg-black">
@@ -923,11 +951,11 @@ function MusicNode({ data }: NodeProps) {
   if (embedUrl && !embedFailed) {
     return (
       <article
-        className="dump-node relative w-[23rem] cursor-pointer overflow-visible rounded-[2rem] border-4 bg-black text-card-foreground"
+        className="dump-node relative w-[23rem] cursor-pointer overflow-visible rounded-2xl border bg-black text-card-foreground"
         data-dump-type="music"
         data-music-renderer="embed"
       >
-        <div className="nodrag nopan nowheel relative h-[152px] overflow-hidden rounded-[calc(2rem-4px)] bg-black">
+        <div className="nodrag nopan nowheel relative h-[152px] overflow-hidden rounded-[calc(1rem-1px)] bg-black">
           <iframe
             src={embedUrl}
             title={`Play ${music.title || "music"}`}
@@ -943,7 +971,7 @@ function MusicNode({ data }: NodeProps) {
 
   return (
     <article
-      className="dump-node relative h-72 w-72 cursor-pointer overflow-hidden rounded-[2rem] border-4 bg-black text-card-foreground"
+      className="dump-node relative h-72 w-72 cursor-pointer overflow-hidden rounded-2xl border bg-black text-card-foreground"
       data-dump-type="music"
       data-music-renderer="fallback"
     >
@@ -1149,6 +1177,26 @@ function ManageDumpsDialog({
   );
 }
 
+// Render a dump's card outside of React Flow (used by the grid layout). The
+// node components only read `data`, so we can render them as standalone cards.
+function renderDumpCard(node: Node) {
+  const props = { data: node.data } as unknown as NodeProps;
+  switch (node.type) {
+    case "image":
+      return <ImageNode {...props} />;
+    case "link":
+      return <LinkNode {...props} />;
+    case "pdf":
+      return <PdfNode {...props} />;
+    case "video":
+      return <VideoNode {...props} />;
+    case "music":
+      return <MusicNode {...props} />;
+    default:
+      return <NoteNode {...props} />;
+  }
+}
+
 export function HomeFlow() {
   const { data: session, isPending } = authClient.useSession();
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
@@ -1165,7 +1213,63 @@ export function HomeFlow() {
   const [focusedSourceId, setFocusedSourceId] = useState<string | null>(null);
   const [isManageOpen, setIsManageOpen] = useState(false);
   const [manageSearch, setManageSearch] = useState("");
+  const [layoutMode, setLayoutMode] = useState<LayoutMode>("free");
+  const [reminder, setReminder] = useState<DumpRecord | null>(null);
   const isSignedIn = Boolean(session);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("dumpd:layout");
+    if (stored === "free" || stored === "grid") {
+      setLayoutMode(stored);
+    }
+  }, []);
+
+  const handleLayoutModeChange = useCallback(
+    (value: LayoutMode) => {
+      setLayoutMode(value);
+      localStorage.setItem("dumpd:layout", value);
+    },
+    [],
+  );
+
+  const markReminded = useCallback((id: string) => {
+    const reminded = readRemindedMap();
+    reminded[id] = Date.now();
+    localStorage.setItem(REMINDED_STORAGE_KEY, JSON.stringify(reminded));
+    setReminder((current) => (current?.id === id ? null : current));
+  }, []);
+
+  const handleReminderOpen = useCallback(
+    (dump: DumpRecord) => {
+      setActiveWorldId(dump.worldId);
+      setFocusedSourceId(dump.id);
+      markReminded(dump.id);
+    },
+    [markReminded],
+  );
+
+  useEffect(() => {
+    if (!isSignedIn || isLoadingDumps || dumps.length === 0) {
+      setReminder(null);
+      return;
+    }
+    const reminded = readRemindedMap();
+    const now = Date.now();
+    const candidate = dumps
+      .filter((dump) => {
+        const age = now - new Date(dump.updatedAt).getTime();
+        const lastReminded = reminded[dump.id] ?? 0;
+        return (
+          age > REMINDER_STALE_MS &&
+          now - lastReminded > REMINDER_COOLDOWN_MS
+        );
+      })
+      .sort(
+        (a, b) =>
+          new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime(),
+      )[0];
+    setReminder(candidate ?? null);
+  }, [dumps, isLoadingDumps, isSignedIn]);
 
   const handleDeleteDump = useCallback(
     async (dump: DumpRecord) => {
@@ -1222,6 +1326,7 @@ export function HomeFlow() {
   }, [activeWorldId, flowInstance]);
 
   useEffect(() => {
+    if (layoutMode === "grid") return;
     if (
       focusedSourceId &&
       flowInstance &&
@@ -1234,7 +1339,18 @@ export function HomeFlow() {
         maxZoom: 1.15,
       });
     }
-  }, [flowInstance, focusedSourceId, nodes]);
+  }, [flowInstance, focusedSourceId, layoutMode, nodes]);
+
+  // In grid mode there's no React Flow viewport to fit — scroll the card into view.
+  useEffect(() => {
+    if (layoutMode !== "grid" || !focusedSourceId) return;
+    const timeout = setTimeout(() => {
+      document
+        .getElementById(`grid-card-${focusedSourceId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 50);
+    return () => clearTimeout(timeout);
+  }, [focusedSourceId, layoutMode, nodes]);
 
   const displayedNodes = useMemo(
     () =>
@@ -1615,10 +1731,34 @@ export function HomeFlow() {
     [],
   );
 
+  const showGrid = layoutMode === "grid" && Boolean(activeWorldId);
+
   return (
     <div className="relative h-svh w-full">
-      <ReactFlow
-        key={activeWorldId}
+      {showGrid ? (
+        <div className="h-svh w-full overflow-y-auto bg-background">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-start justify-center gap-6 px-5 pb-36 pt-24 md:px-8">
+            {nodes.map((node) => (
+              <div
+                key={node.id}
+                id={`grid-card-${node.id}`}
+                onClick={(event) => handleNodeClick(event, node)}
+                className={`transition-all duration-200 ${
+                  focusedSourceId === node.id
+                    ? "scale-[1.02]"
+                    : focusedSourceId
+                      ? "opacity-40"
+                      : ""
+                }`}
+              >
+                {renderDumpCard(node)}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <ReactFlow
+          key={activeWorldId}
         nodes={displayedNodes}
         edges={edges}
         nodeTypes={nodeTypes}
@@ -1662,13 +1802,61 @@ export function HomeFlow() {
           maskColor="color-mix(in oklab, var(--background) 72%, transparent)"
           style={minimapStyle}
         />
-        {/* <Background
-          variant={BackgroundVariant.Dots}
-          gap={22}
-          size={2}
-          color="var(--border)"
-        /> */}
-      </ReactFlow>
+        </ReactFlow>
+      )}
+      {isSignedIn && activeWorldId ? (
+        <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] left-3 z-20 flex items-center gap-0.5 rounded-full border border-border/70 bg-card/80 p-1 shadow-sm backdrop-blur-xl md:left-4">
+          {LAYOUT_OPTIONS.map(({ value, label, icon: Icon }) => (
+            <button
+              key={value}
+              type="button"
+              aria-label={`${label} layout`}
+              title={`${label} layout`}
+              onClick={() => handleLayoutModeChange(value)}
+              className={`flex h-8 cursor-pointer items-center gap-1.5 rounded-full px-3 text-xs font-medium transition ${
+                layoutMode === value
+                  ? "bg-foreground text-background"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              }`}
+            >
+              <Icon className="size-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {reminder ? (
+        <div className="pointer-events-none absolute inset-x-0 bottom-[calc(env(safe-area-inset-bottom)+1rem)] z-30 flex justify-center px-4">
+          <div className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl border border-border/70 bg-card/90 px-4 py-3 shadow-lg backdrop-blur-xl">
+            <div className="grid size-9 shrink-0 place-items-center rounded-full bg-foreground/5 text-foreground">
+              <Bell className="size-4.5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium text-muted-foreground">
+                Remember this?
+              </p>
+              <p className="truncate text-sm font-semibold text-foreground">
+                {reminder.title || "Untitled dump"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => handleReminderOpen(reminder)}
+              className="shrink-0 cursor-pointer rounded-full bg-foreground px-3 py-1.5 text-xs font-semibold text-background transition hover:opacity-90"
+            >
+              Take me there
+            </button>
+            <button
+              type="button"
+              aria-label="Dismiss reminder"
+              onClick={() => markReminded(reminder.id)}
+              className="grid size-7 shrink-0 cursor-pointer place-items-center rounded-full text-muted-foreground transition hover:bg-muted hover:text-foreground"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        </div>
+      ) : null}
       {isSignedIn && !isLoadingWorlds ? (
         <div className="absolute left-3 top-[calc(env(safe-area-inset-top)+0.75rem)] z-20 md:left-4 md:top-4">
           <WorldSwitcher
