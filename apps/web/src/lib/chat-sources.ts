@@ -6,6 +6,7 @@ export type ChatSource = {
   title: string;
   modality: string;
   url: string | null;
+  previewUrl?: string | null;
 };
 
 export type ChatMessage = UIMessage<
@@ -16,3 +17,4 @@ export type ChatMessage = UIMessage<
 >;
 
 export const SOURCE_FOCUS_EVENT = "dumpd:source-focus";
+export const MANAGE_DUMPS_EVENT = "dumpd:manage-dumps";
